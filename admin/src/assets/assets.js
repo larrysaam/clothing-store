@@ -36,5 +36,5 @@ export const assets = {
     uploadArea,
     orderIcon,
     addIcon,
-    parcelIcon
+    parcelIcon,
 }

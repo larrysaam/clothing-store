@@ -7,7 +7,7 @@ const Footer = () => {
     <div>
         <div className='flex flex-col sm:grid grid-cols-[3fr_1fr_1fr] gap-14 my-10 md:mt-40 text-sm'>
             <div>
-                <img src={assets.logo} alt='logo' className='mb-5 w-32'/>
+                <img src={assets.KMlogo} alt='logo' className='mb-5 w-24'/>
                 <p className='w-full md:w-2/3 text-gray-600'>
                 At Clothing Store, we believe fashion is more than just clothing—it's a statement. Our mission is to provide high-quality, stylish, and affordable fashion that helps you express yourself with confidence.                </p>
             </div>

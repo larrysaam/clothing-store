@@ -29,6 +29,7 @@ import cross from './cross_icon.png'
 import check from './check.svg'
 import eyeIcon from './eye_icon.svg'
 import stripe from './stripe_logo.png'
+import KMlogo from './km.png'
 
 
 export const assets = {
@@ -47,7 +48,8 @@ export const assets = {
     aboutImg, contactImg, 
     exchangeImg, qualityImg, supportImg,
     check, eyeIcon,
-    stripe
+    stripe,
+    KMlogo
 }
 
 export const products = [
