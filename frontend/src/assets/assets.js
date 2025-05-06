@@ -1,5 +1,9 @@
 import burger from './burger.svg'
 import hero from './hero.jpg'
+import hero1 from './hero1.jpeg'
+import hero2 from './hero2.jpeg'
+import hero3 from './hero3.jpeg'
+import hero4 from './hero4.jpeg'
 import cart from './cart.svg'
 import profile from './profile.svg'
 import search from './search.svg'
@@ -34,7 +38,7 @@ import KMlogo from './km.png'
 
 export const assets = {
     burger,
-    hero,
+    hero, hero1, hero2, hero3, hero4,
     logo,
     cart, profile, search,
     deleteIcon,

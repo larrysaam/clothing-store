@@ -22,7 +22,7 @@ const location = useLocation();
   return (
     <div className='flex items-center justify-between py-5 font-medium'>
         <Link to='/' className='cursor-pointer'>
-            <img src={assets.KMlogo} alt='logo' className='w-24'/>
+            <img src={assets.KMlogo} alt='logo' className='w-20 sm:w-24'/>
         </Link>
         <ul className='hidden sm:flex gap-5 text-sm text-gray-700'>
             <NavLink to='/' className='flex flex-col items-center gap-1 group'>
