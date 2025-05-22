@@ -11,55 +11,49 @@ const Hero = () => {
   ]
 
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [fade, setFade] = useState(false)
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setFade(true)
-      setTimeout(() => {
-        setCurrentIndex((prevIndex) => (prevIndex + 1) % images.length)
-        setFade(false)
-      }, 500) // Half a second for fade-out
-    }, 5000) // 5 seconds delay
+      setCurrentIndex((prevIndex) => (prevIndex + 1) % images.length)
+    }, 5000) // 2 seconds interval
 
     return () => clearInterval(interval)
   }, [images.length])
 
-return (
-    <div className='flex flex-col sm:flex-row border border-gray-400'>
-        {/* hero left side */}
-        <div className='w-full sm:w-1/2 flex items-center justify-center py-10 sm:py-0'>
-            <div className='text-[#414141]'>
-                <div className='flex items-center gap-2 '>
-                    <p className='w-8 md:w-11 h-[2px] bg-[#414141]'></p>
-                    <p>OUR BESTSELLERS</p>
-                </div>
-                <h1
-                    className='prata-regular text-3xl sm:py-3 lg:text-7xl 
-                            leading-relxed'
-                >
-                    Latest arrivals
-                </h1>
-                <div className='flex items-center gap-2'>
-                    <Link to='/collection' className='text-sm md:text-base'>
-                        SHOP NOW
-                    </Link>
-                    <p className='w-8 md:w-11 h-[1px] bg-[#414141]'></p>
-                </div>
-            </div>
+  return (
+    <div className='relative w-full h-[500px] sm:h-[600px] lg:h-[700px] overflow-hidden'>
+      {/* Background Image */}
+      <img
+        src={images[currentIndex]}
+        alt={`hero-background-${currentIndex}`}
+        className='w-full h-full object-cover transition-opacity duration-2000'
+      />
+
+      {/* Text and Buttons */}
+      <div className='absolute bottom-10 left-10 text-white'>
+        <h1 className='text-xl sm:text-5xl lg:text-7xl font-bold leading-tight'>
+          TURN OFFSEASON ON
+        </h1>
+        <p className='mt-4 text-lg sm:text-xl'>
+          Get set for summer with gear that can take the heat.
+        </p>
+        <div className='mt-6 flex gap-4'>
+          <Link
+            to='/shop'
+            className='px-6 py-3 bg-white text-black font-medium rounded-full hover:bg-gray-200 transition'
+          >
+            Shop
+          </Link>
+          <Link
+            to='/shop-kids'
+            className='px-6 py-3 bg-white text-black font-medium rounded-full hover:bg-gray-200 transition'
+          >
+            Shop Kids'
+          </Link>
         </div>
-        {/* hero right side */}
-        <div className='w-full sm:w-1/2 overflow-hidden relative flex justify-center items-center'>
-            <img
-                className={`w-full max-w-[550px] min-w-[550px] sm:max-h-[550px] sm:min-h-[550px] h-[400px] object-cover object-top transition-opacity duration-500 ease-in-out ${
-                    fade ? 'opacity-0' : 'opacity-100'
-                }`}
-                src={images[currentIndex]}
-                alt={`hero-img-${currentIndex}`}
-            />
-        </div>
+      </div>
     </div>
-)
+  )
 }
 
 export default Hero

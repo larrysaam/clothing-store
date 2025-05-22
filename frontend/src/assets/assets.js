@@ -33,7 +33,7 @@ import cross from './cross_icon.png'
 import check from './check.svg'
 import eyeIcon from './eye_icon.svg'
 import stripe from './stripe_logo.png'
-import KMlogo from './km.png'
+import KMlogo from './kmlogo.png'
 
 
 export const assets = {
