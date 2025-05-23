@@ -90,7 +90,7 @@ const Collection = () => {
   }, [sortType])
 
   return (
-    <div className='flex flex-col md:flex-row gap-1 sm:gap-10 pt-10 border-t animate-fade animate-duration-500'>
+    <div className='flex flex-col px-4 sm:px-8 md:flex-row gap-1 sm:gap-10 pt-10 border-t animate-fade animate-duration-500'>
       {/* Filter Sidebar */}
       <div className='min-w-60'>
         <p onClick={() => setShowFilter(!showFilter)} className='my-2 text-xl flex items-center cursor-pointer gap-2'>

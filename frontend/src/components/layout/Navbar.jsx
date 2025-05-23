@@ -1,5 +1,5 @@
 import React, { useContext, useState, useEffect } from 'react'
-import { MdOutlineArrowRightAlt } from "react-icons/md";
+import { MdOutlineArrowRightAlt, MdOutlineKeyboardBackspace } from "react-icons/md";
 import { Link, NavLink } from 'react-router-dom'
 import { useLocation } from 'react-router-dom'
 import { assets } from '@/assets/assets'
@@ -7,7 +7,7 @@ import { ShopContext } from '@/context/ShopContext'
 import { toast } from 'sonner'
 
 const Navbar = () => {
-  const [visible, setVisible] = useState(false)
+  const [visible, setVisible] = useState(false) // State to toggle sidebar
   const [showNavbar, setShowNavbar] = useState(true)
   const [lastScrollY, setLastScrollY] = useState(0)
   const { showSearch, setShowSearch, getCartCount, navigate, token, setToken } = useContext(ShopContext)
@@ -151,6 +151,37 @@ const Navbar = () => {
               className='w-5 cursor-pointer sm:hidden'
             />
           </div>
+        </div>
+      </div>
+
+      {/* Sidebar Menu */}
+      <div
+        className={`fixed top-0 right-0 w-full h-full bg-white z-50 transition-transform duration-300 ${
+          visible ? 'translate-x-0' : 'translate-x-full'
+        }`}
+      >
+        <div className='p-5'>
+          <button
+            onClick={() => setVisible(false)}
+            className='flex items-center justify-center text-black text-lg font-bold'
+          >
+            <MdOutlineKeyboardBackspace className='size-6 mx-2'/> 
+            <span>Go Back</span>
+          </button>
+          <ul className='mt-5 flex flex-col gap-4'>
+            <NavLink to='/' onClick={() => setVisible(false)} className='py-2 pl-6 border-t hover:text-black'>
+              Home
+            </NavLink>
+            <NavLink to='/collection' onClick={() => setVisible(false)} className='py-2 pl-6 border-t hover:text-black'>
+              Collection
+            </NavLink>
+            <NavLink to='/about' onClick={() => setVisible(false)} className='py-2 pl-6 border-t hover:text-black'>
+              About
+            </NavLink>
+            <NavLink to='/contact' onClick={() => setVisible(false)} className='py-2 pl-6 border-t hover:text-black'>
+              Contact
+            </NavLink>
+          </ul>
         </div>
       </div>
     </>
