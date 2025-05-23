@@ -1,4 +1,5 @@
 import React, { useContext, useState, useEffect } from 'react'
+import { MdOutlineArrowRightAlt } from "react-icons/md";
 import { Link, NavLink } from 'react-router-dom'
 import { useLocation } from 'react-router-dom'
 import { assets } from '@/assets/assets'
@@ -48,26 +49,36 @@ const Navbar = () => {
           <Link to='/' className='cursor-pointer'>
             <img src={assets.KMlogo} alt='logo' className='w-16 sm:w-18' />
           </Link>
+          <div>
+          </div>
           <ul className='hidden sm:flex gap-5 text-sm text-black'>
-            <NavLink to='/' className='flex flex-col text-[18px] items-center gap-1 group'>
+            <NavLink to='/' className='flex flex-col text-[16px] items-center gap-1 group'>
               <p>New & Featured</p>
               <hr className='w-3/4 border-none h-[2px] bg-black scale-0 transition-all duration-500 group-hover:scale-100 group-[.active]:scale-100' />
             </NavLink>
-            <NavLink to='/collection' className='flex text-[18px] flex-col items-center gap-1 group'>
+            <NavLink to='/collection' className='flex text-[16px] flex-col items-center gap-1 group'>
               <p>Men</p>
               <hr className='w-3/4 border-none h-[2px] bg-black scale-0 transition-all duration-500 group-hover:scale-100 group-[.active]:scale-100' />
             </NavLink>
-            <NavLink to='/about' className='flex flex-col text-[18px] items-center gap-1 group'>
+            <NavLink to='/about' className='flex flex-col text-[16px] items-center gap-1 group'>
               <p>Women</p>
               <hr className='w-3/4 border-none h-[2px] bg-black scale-0 transition-all duration-500 group-hover:scale-100 group-[.active]:scale-100' />
             </NavLink>
-            <NavLink to='/contact' className='flex flex-col text-[18px] items-center gap-1 group'>
+            <NavLink to='/contact' className='flex flex-col text-[16px] items-center gap-1 group'>
               <p>Kids</p>
               <hr className='w-3/4 border-none h-[2px] bg-black scale-0 transition-all duration-500 group-hover:scale-100 group-[.active]:scale-100' />
             </NavLink>
           </ul>
   
           <div className='flex items-center gap-6'>
+            {/* pre-order button */}
+            <button 
+              className='w-40 h-8 hidden sm:block rounded-full bg-black text-white text-sm '
+            >
+              <span>Pre-Order Now</span>
+              <MdOutlineArrowRightAlt className='inline-block ml-2 bg-white text-black rounded-full w-5 h-5' />
+            </button>
+
             <img
               src={assets.search}
               alt='search-icon'

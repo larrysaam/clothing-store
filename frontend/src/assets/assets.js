@@ -34,6 +34,8 @@ import check from './check.svg'
 import eyeIcon from './eye_icon.svg'
 import stripe from './stripe_logo.png'
 import KMlogo from './kmlogo.png'
+import Nike1 from './nike1.jpg'
+import Nike2 from './nike2.jpg'
 
 
 export const assets = {
@@ -53,7 +55,8 @@ export const assets = {
     exchangeImg, qualityImg, supportImg,
     check, eyeIcon,
     stripe,
-    KMlogo
+    KMlogo,
+    Nike1, Nike2
 }
 
 export const products = [
