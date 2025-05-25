@@ -5,6 +5,7 @@ import Bestseller from '@/features/home/Bestseller'
 import OurPolicy from '@/features/home/OurPolicy'
 import NewsletterBox from '@/features/shared/NewsletterBox'
 import NewLook from '@/features/home/NewLook'
+import { Picks } from '@/features/home/Picks'
 
 const Home = () => {
   return (
@@ -13,6 +14,7 @@ const Home = () => {
       <NewLook/>
       <LatestCollection/>
       <Bestseller/>
+      <Picks/>
       <NewsletterBox/>
     </div>
   )
