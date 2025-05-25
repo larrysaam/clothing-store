@@ -34,7 +34,7 @@ const Product = () => {
   }
 
   return (
-    <div className='border-t-2 pt-10 animate-fade animate-duration-500'>
+    <div className='border-t-2 pt-10 animate-fade animate-duration-500 sm:mx-2 sm:mt-0 md:mx-8 lg:mx-16 xl:mx-24'>
       <div>
         {/* ----------- Product Data ----------- */}
         <div className='flex gap-12 sm:gap-20 flex-col sm:flex-row'>
@@ -45,13 +45,13 @@ const Product = () => {
               {
                 productData?.image.map((item, index) => {
                   return <img src={item} alt='image' key={index} onClick={() => setImage(item)}
-                    className='w-[24%] sm:w-full sm:mb-3 flex-shrink-0 cursor-pointer ' />
+                    className='w-[24%] sm:w-full sm:mb-3 flex-shrink-0 cursor-pointer rounded-md ' />
                 })
               }
             </div>
 
             <div className='w-full sm:w-[80%]'>
-              <img src={image} className='w-full h-auto' alt='main-image' />
+              <img src={image} className='w-full h-auto rounded-md' alt='main-image' />
             </div>
           </div>
           {/* ----------- Product Info ----------- */}
@@ -78,7 +78,7 @@ const Product = () => {
                 navigate('/login')
               }
             }}
-              className='bg-black text-white px-8 py-3 text-sm active:bg-gray-700'>ADD TO CART</button>
+              className='bg-black text-white px-8 py-3 text-sm rounded-full active:bg-gray-700'>ADD TO CART</button>
             <hr className='mt-8 sm:w-4/5' />
             <div className='text-sm text-gray-500 mt-5 flex flex-col gap-1'>
               <p>100% Original Product</p>

@@ -89,6 +89,8 @@ const Collection = () => {
     sortProduct()
   }, [sortType])
 
+  
+
   return (
     <div className='flex flex-col px-4 sm:px-8 md:flex-row gap-1 sm:gap-10 pt-10 border-t animate-fade animate-duration-500'>
       {/* Filter Sidebar */}
@@ -155,7 +157,7 @@ const Collection = () => {
         {/* Product Grid */}
         {isLoading ? <CollectionSkeleton /> : (
           <div>
-            <div className='grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 gap-y-6'>
+            <div className='grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4 gap-y-14'>
               {filterProducts.map((item) => (
                 <ProductItem key={item._id} id={item._id} name={item.name} price={item.price} image={item.image} />
               ))}

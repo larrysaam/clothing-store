@@ -11,8 +11,8 @@ const ProductItem = ({id, image, name, price}) => {
         <div className='overflow-hidden rounded-xl'>
             <img src={image[0]} className='w-full aspect-square transistion-all duration-300 ease-in-out group-hover:scale-[115%] aspect-square object-cover' alt=''/>
         </div> 
-        <p className='pt-3 pb-1 text-sm'>{name}</p>
-        <p className='text-sm font-medium'>{currency}{price}</p>
+        <p className='pt-3 pb-1 text-lg'>{name}</p>
+        <p className='text-lg font-medium'>{currency}{price}</p>
     </Link>
   )
 }
