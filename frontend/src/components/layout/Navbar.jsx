@@ -36,6 +36,21 @@ const Navbar = () => {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [lastScrollY])
 
+  const menuItems = {
+    'New & Featured': {
+      Featured: ['New Releases', 'Best Sellers', 'Y2K Sneakers'],
+    },
+    Men: {
+      Shoes: ['All Shoes', 'Lifestyle', 'Jordan', 'Running', 'Football', 'Basketball', 'Training and Gym', 'Skateboarding', 'Nike By You'],
+      Clothing: ['All Clothing', 'Hoodies and Sweatshirts', 'Jackets', 'Trousers and Tights', 'Tracksuits', 'Tops and T-Shirts', 'Shorts', 'Kits and Jerseys'],
+      'Discover Sport': ['Running', 'Football', 'Basketball', 'Training & Gym', 'Tennis', 'Golf'],
+      'Accessories and Equipment': ['All Accessories and Equipment', 'Bags and Backpacks', 'Headwear', 'Socks'],
+    },
+    Women:{},
+    Kids: {},
+    // Add similar structures for Women and Kids
+  }
+
   return (
     <>
       {/* Add a spacer div to prevent the navbar from overlapping the content */}
@@ -52,22 +67,39 @@ const Navbar = () => {
           <div>
           </div>
           <ul className='hidden sm:flex gap-5 text-sm text-black'>
-            <NavLink to='/' className='flex flex-col text-[16px] items-center gap-1 group'>
-              <p>New & Featured</p>
-              <hr className='w-3/4 border-none h-[2px] bg-black scale-0 transition-all duration-500 group-hover:scale-100 group-[.active]:scale-100' />
-            </NavLink>
-            <NavLink to='/collection' className='flex text-[16px] flex-col items-center gap-1 group'>
-              <p>Men</p>
-              <hr className='w-3/4 border-none h-[2px] bg-black scale-0 transition-all duration-500 group-hover:scale-100 group-[.active]:scale-100' />
-            </NavLink>
-            <NavLink to='/about' className='flex flex-col text-[16px] items-center gap-1 group'>
-              <p>Women</p>
-              <hr className='w-3/4 border-none h-[2px] bg-black scale-0 transition-all duration-500 group-hover:scale-100 group-[.active]:scale-100' />
-            </NavLink>
-            <NavLink to='/contact' className='flex flex-col text-[16px] items-center gap-1 group'>
-              <p>Kids</p>
-              <hr className='w-3/4 border-none h-[2px] bg-black scale-0 transition-all duration-500 group-hover:scale-100 group-[.active]:scale-100' />
-            </NavLink>
+            {Object.keys(menuItems).map((category) => (
+              <div key={category} className="group relative">
+                <NavLink className='flex flex-col text-[16px] items-center gap-1'>
+                  <p>{category}</p>
+                  <hr className='w-3/4 border-none h-[2px] bg-black scale-0 transition-all duration-500 group-hover:scale-100' />
+                </NavLink>
+                
+                {/* Updated Dropdown Menu */}
+                <div className="absolute invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-300 left-1/2 -translate-x-1/2 pt-5 w-screen bg-white shadow-lg">
+                  <div className="container mx-auto px-16 py-8">
+                    <div className="grid grid-cols-4 gap-8">
+                      {Object.entries(menuItems[category]).map(([section, items]) => (
+                        <div key={section} className="flex flex-col gap-4">
+                          <h3 className="font-bold text-black">{section}</h3>
+                          <ul className="flex flex-col gap-2">
+                            {items.map((item) => (
+                              <li key={item}>
+                                <Link 
+                                  to={`/${category.toLowerCase()}/${item.toLowerCase().replace(/ /g, '-')}`}
+                                  className="text-gray-600 hover:text-black text-sm"
+                                >
+                                  {item}
+                                </Link>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
           </ul>
   
           <div className='flex items-center gap-6'>
