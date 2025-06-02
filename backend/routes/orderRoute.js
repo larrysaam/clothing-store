@@ -1,5 +1,5 @@
 import express from 'express'
-import { placeOrder, placeOrderStripe, allOrders, userOrders, updateStatus, verifyStripe } from '../controllers/orderController.js'
+import { placeOrder, placeOrderStripe, allOrders, userOrders, updateStatus, verifyStripe, validatePayment } from '../controllers/orderController.js'
 import adminAuth from '../middleware/adminAuth.js'
 import authUser from '../middleware/auth.js'
 
@@ -8,6 +8,7 @@ const orderRouter = express.Router()
 //admin features
 orderRouter.post('/list', adminAuth, allOrders)
 orderRouter.post('/status', adminAuth, updateStatus)
+orderRouter.post('/payment', adminAuth, validatePayment);
 
 //payment features
 orderRouter.post('/place', authUser, placeOrder)

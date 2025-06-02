@@ -10,6 +10,15 @@ const Navbar = () => {
   const [visible, setVisible] = useState(false) // State to toggle sidebar
   const [showNavbar, setShowNavbar] = useState(true)
   const [lastScrollY, setLastScrollY] = useState(0)
+  const [categories, setCategories] = useState({
+    'New & Featured': {
+      subcategories: ['New Releases', 'Best Sellers', 'Y2K Sneakers']
+    },
+    Men: { subcategories: [] },
+    Women: { subcategories: [] },
+    Kids: { subcategories: [] }
+  })
+  const [isLoading, setIsLoading] = useState(true)
   const { showSearch, setShowSearch, getCartCount, navigate, token, setToken } = useContext(ShopContext)
 
   const logout = () => {
@@ -36,20 +45,37 @@ const Navbar = () => {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [lastScrollY])
 
-  const menuItems = {
-    'New & Featured': {
-      Featured: ['New Releases', 'Best Sellers', 'Y2K Sneakers'],
-    },
-    Men: {
-      Shoes: ['All Shoes', 'Lifestyle', 'Jordan', 'Running', 'Football', 'Basketball', 'Training and Gym', 'Skateboarding', 'Nike By You'],
-      Clothing: ['All Clothing', 'Hoodies and Sweatshirts', 'Jackets', 'Trousers and Tights', 'Tracksuits', 'Tops and T-Shirts', 'Shorts', 'Kits and Jerseys'],
-      'Discover Sport': ['Running', 'Football', 'Basketball', 'Training & Gym', 'Tennis', 'Golf'],
-      'Accessories and Equipment': ['All Accessories and Equipment', 'Bags and Backpacks', 'Headwear', 'Socks'],
-    },
-    Women:{},
-    Kids: {},
-    // Add similar structures for Women and Kids
+  const fetchCategories = async () => {
+    try {
+      setIsLoading(true)
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/categories/user`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'token': token
+        }
+      })
+      const data = await response.json()
+
+      if (data.success) {
+        const formattedCategories = {
+          'New & Featured': categories['New & Featured'],
+          Men: { subcategories: data.categories.Men || [] },
+          Women: { subcategories: data.categories.Women || [] },
+          Kids: { subcategories: data.categories.Kids || [] }
+        }
+        setCategories(formattedCategories)
+      }
+    } catch (error) {
+      console.error('Failed to fetch categories:', error)
+    } finally {
+      setIsLoading(false)
+    }
   }
+
+  useEffect(() => {
+    fetchCategories()
+  }, [])
 
   return (
     <>
@@ -67,32 +93,28 @@ const Navbar = () => {
           <div>
           </div>
           <ul className='hidden sm:flex gap-5 text-sm text-black'>
-            {Object.keys(menuItems).map((category) => (
+            {Object.keys(categories).map((category) => (
               <div key={category} className="group relative">
                 <NavLink className='flex flex-col text-[16px] items-center gap-1'>
                   <p>{category}</p>
                   <hr className='w-3/4 border-none h-[2px] bg-black scale-0 transition-all duration-500 group-hover:scale-100' />
                 </NavLink>
                 
-                {/* Updated Dropdown Menu */}
+                {/* Dropdown Menu */}
                 <div className="absolute invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-300 left-1/2 -translate-x-1/2 pt-5 w-screen bg-white shadow-lg">
                   <div className="container mx-auto px-16 py-8">
                     <div className="grid grid-cols-4 gap-8">
-                      {Object.entries(menuItems[category]).map(([section, items]) => (
-                        <div key={section} className="flex flex-col gap-4">
-                          <h3 className="font-bold text-black">{section}</h3>
-                          <ul className="flex flex-col gap-2">
-                            {items.map((item) => (
-                              <li key={item}>
-                                <Link 
-                                  to={`/${category.toLowerCase()}/${item.toLowerCase().replace(/ /g, '-')}`}
-                                  className="text-gray-600 hover:text-black text-sm"
-                                >
-                                  {item}
-                                </Link>
-                              </li>
-                            ))}
-                          </ul>
+                      {categories[category].subcategories?.map((subcategory) => (
+                        <div key={subcategory} className="flex flex-col gap-2">
+                          <Link 
+                            to={{
+                              pathname: '/collection',
+                              search: `?category=${category.toLowerCase()}&subcategory=${subcategory.toLowerCase().replace(/ /g, '-')}`
+                            }}
+                            className="text-gray-600 hover:text-black text-sm"
+                          >
+                            {subcategory}
+                          </Link>
                         </div>
                       ))}
                     </div>

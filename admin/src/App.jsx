@@ -8,6 +8,9 @@ import List from './pages/List'
 import Orders from './pages/Orders'
 import { Toaster } from "@/components/ui/sonner"
 import NotFound from './components/NotFound'
+import Dashboard from './pages/Dashboard'
+import Categories from './pages/Categories'
+import Preorders from './pages/Preorders'
 
 export const backendUrl = import.meta.env.VITE_BACKEND_URL
 export const currency = '$'
@@ -36,6 +39,9 @@ const App = () => {
                     <Route path='/add' element={<Add token={token} />} />
                     <Route path='/list' element={<List token={token} />} />
                     <Route path='/orders' element={<Orders token={token} />} />
+                    <Route path='/preorders' element={<Preorders token={token} />} />
+                    <Route path='/category' element={<Categories token={token} />} />
+                    <Route path='/' element={<Dashboard token={token} />} />
                     <Route path='*' element={<NotFound />} />
                   </Routes>
                 </div>

@@ -3,7 +3,6 @@ import hero from './hero.jpg'
 import cart from './cart.svg'
 import profile from './profile.svg'
 import search from './search.svg'
-import logo from './logo.png'
 import deleteIcon from './bin_icon.png'
 import arrow from './arrow.svg'
 import star from './star.svg'
@@ -16,6 +15,7 @@ import uploadArea from './upload_area.png'
 import orderIcon from './order_icon.png'
 import addIcon from './add_icon.png'
 import parcelIcon from './parcel_icon.svg'
+import logo from './kmlogo.png'
 
 
 export const assets = {

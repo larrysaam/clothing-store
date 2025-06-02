@@ -12,7 +12,8 @@ const addProduct = async (req,res) => {
             category,
             subcategory,
             sizes,
-            bestseller
+            bestseller,
+            preorder, // Add preorder to destructuring
         } = req.body;
 
         const image1 = req.files.image1 && req.files.image1[0]
@@ -36,20 +37,30 @@ const addProduct = async (req,res) => {
             subcategory, 
             sizes: JSON.parse(sizes), 
             bestseller: bestseller === "true" ? true : false,
+            preorder: preorder === "true" ? true : false, // Add preorder field
             image: imagesUrl,
             date: Date.now()
         }
 
         const product = new productModel(productData)
-        await product.save()
+        await product.save({
+            writeConcern: {
+                w: 1,
+                wtimeout: 5000
+            }
+        })
+
         res.json({
             success: true,
             message: "Product Added"
         })
 
     } catch (error) {
-        console.log(error)
-        res.json({success: false, message: error.message})
+        console.error('Add product error:', error) // Better error logging
+        res.status(500).json({
+            success: false, 
+            message: error.message
+        })
     }
 }
 
@@ -115,4 +126,50 @@ const singleProduct = async (req,res) => {
     }
 }
 
-export { addProduct, listProducts, removeProduct, singleProduct }
+const updateProduct = async (req, res) => {
+  try {
+    const { id } = req.params
+    const { name, price, category, description } = req.body
+
+    // Validate inputs
+    if (!name || !price || !category) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name, price, and category are required'
+      })
+    }
+
+    // Find and update the product
+    const updatedProduct = await Product.findByIdAndUpdate(
+      id,
+      {
+        name,
+        price,
+        category,
+        description
+      },
+      { new: true }
+    )
+
+    if (!updatedProduct) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      })
+    }
+
+    res.json({
+      success: true,
+      message: 'Product updated successfully',
+      product: updatedProduct
+    })
+  } catch (error) {
+    console.error('Update product error:', error)
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to update product'
+    })
+  }
+}
+
+export { addProduct, listProducts, removeProduct, singleProduct, updateProduct }

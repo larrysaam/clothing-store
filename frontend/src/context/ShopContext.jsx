@@ -32,6 +32,7 @@ const ShopContextProvider = (props) => {
     queryKey: ["products"],
     queryFn: async () => {
       const { data } = await axios.get(`${backendUrl}/api/product/list`);
+      console.log("Products loaded:", data.products);
       return data.products;
     },
   });

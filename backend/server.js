@@ -7,6 +7,9 @@ import userRouter from './routes/userRoute.js'
 import productRouter from './routes/productRoute.js'
 import cartRouter from './routes/cartRoute.js'
 import orderRouter from './routes/orderRoute.js'
+import DashboardRouter from './routes/dashboardRoute.js'
+import CategoryRouter from './routes/categoryRoute.js'
+import PreorderRouter from './routes/preorderRoute.js'
 
 //App config
 
@@ -26,6 +29,9 @@ app.use('/api/user', userRouter)
 app.use('/api/product', productRouter)
 app.use('/api/cart', cartRouter)
 app.use('/api/order', orderRouter)
+app.use('/api/preorder', PreorderRouter)
+app.use('/api/admin', DashboardRouter)
+app.use('/api/categories', CategoryRouter)
 
 app.get('/', (req, res) => {
     res.send("API working")

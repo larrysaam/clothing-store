@@ -158,6 +158,43 @@ const userOrders = async  (req,res) => {
     }
 }
 
+const validatePayment = async (req, res) => {
+    try {
+        const { orderId } = req.body;
+        
+        const order = await orderModel.findByIdAndUpdate(
+            orderId,
+            { payment: true },
+            { 
+                new: true,
+                writeConcern: { w: 'majority' } // Proper write concern configuration
+            }
+        );
+
+        console.log(order);
+
+        if (!order) {
+            return res.json({
+                success: false,
+                message: "Order not found"
+            });
+        }
+
+        res.json({
+            success: true,
+            message: "Payment validated successfully"
+        });
+    } catch (error) {
+        console.log(error);
+        res.json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+
+
 //Update Order Status from Admin panel
 const updateStatus = async  (req,res) => {
     try {
@@ -171,4 +208,4 @@ const updateStatus = async  (req,res) => {
     }
 }
 
-export { placeOrder, placeOrderStripe, allOrders, userOrders, updateStatus, verifyStripe }
+export { placeOrder, placeOrderStripe, allOrders, userOrders, updateStatus, verifyStripe, validatePayment }

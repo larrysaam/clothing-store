@@ -3,9 +3,9 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 export const ProductSkeleton = () => {
     return (
-        <div>
+        <div className='mx-4 sm:mx-2 sm:mt-0 md:mx-8 lg:mx-16 xl:mx-24'>
             {/* ----------- Product Data ----------- */}
-            <div className='min-h-[480px] flex gap-12 sm:gap-20 flex-col sm:flex-row'>
+            <div className='min-h-[480px] flex gap-12 sm:gap-20 flex-col sm:flex-row '>
 
                 {/* ----------- Product Images ----------- */}
                 <div className='flex flex-col-reverse gap-3 sm:flex-row flex-1'>

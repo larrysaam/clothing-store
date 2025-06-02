@@ -6,15 +6,33 @@ import { ProductSkeleton } from '@/components/ProductSkeleton';
 import NotFound from '@/components/NotFound';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-
+import axios from 'axios';
+import { toast } from 'react-toastify';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
 
 const Product = () => {
 
+  const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const { productId } = useParams();
   const { products, currency, addToCart, token, navigate, isLoading } = useContext(ShopContext)
   const [productData, setProductData] = useState()
   const [image, setImage] = useState('')
   const [size, setSize] = useState('')
+  const [hasPreordered, setHasPreordered] = useState(false)
+  const [showAddressForm, setShowAddressForm] = useState(false)
+  const [address, setAddress] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    street: '',
+    city: '',
+    state: '',
+    country: '',
+    zipcode: '',
+    phone: ''
+  })
+  const [addressDialogOpen, setAddressDialogOpen] = useState(false)
 
   const foundProduct = products.find((item) => item._id == productId);
 
@@ -24,6 +42,65 @@ const Product = () => {
     setImage(foundProduct?.image[0]);
 
   }, [productId, products]);
+
+  const handlePreorder = async () => {
+    if (!token) {
+      navigate('/login')
+      return
+    }
+
+    if (!size) {
+      toast.error('Please select a size')
+      return
+    }
+
+    setAddressDialogOpen(true)
+  }
+
+  const handlePreorderSubmit = async () => {
+    try {
+      if (!address.firstName || !address.lastName || !address.email || !address.phone || 
+          !address.street || !address.city || !address.state || !address.country || !address.zipcode) {
+        toast.error('Please fill all address fields')
+        return
+      }
+
+      const preorderItem = {
+        productId: productData._id,
+        name: productData.name,
+        size: size,
+        quantity: 1,
+        price: productData.price,
+        image: productData.image[0]
+      }
+
+      const response = await axios.post(`${backendUrl}/api/preorder/create`, {
+        userId: token,
+        items: [preorderItem],
+        address
+      }, {
+        headers: { token }
+      })
+
+      console.log(response.data)
+
+      if (response.data.success) {
+        toast.success('Preorder placed successfully')
+        setHasPreordered(true)
+        setAddressDialogOpen(false)
+        setAddress({
+          firstName: '', lastName: '', email: '', street: '', city: '',
+          state: '', country: '', zipcode: '', phone: ''
+        })
+      }
+    } catch (error) {
+      if (error.response?.status === 409) {
+        toast.error('You have already preordered this item')
+      } else {
+        toast.error('Failed to place preorder')
+      }
+    }
+  }
 
   if (isLoading) {
     return <ProductSkeleton />
@@ -71,14 +148,43 @@ const Product = () => {
                 })}
               </ToggleGroup>
             </div>
-            <button onClick={() => {
-              if (token) {
-                addToCart(productData?._id, size)
-              } else {
-                navigate('/login')
-              }
-            }}
-              className='bg-black text-white px-8 py-3 text-sm rounded-full active:bg-gray-700'>ADD TO CART</button>
+            {/* ----------- Replace the existing buttons section ----------- */}
+            {productData?.preorder ? (
+              hasPreordered ? (
+                <button 
+                  disabled
+                  className='bg-gray-400 text-white px-8 py-3 text-sm rounded-full cursor-not-allowed'
+                >
+                  Preordered
+                </button>
+              ) : (
+                <button 
+                  onClick={handlePreorder}
+                  disabled={!size}
+                  className={`bg-blue-600 text-white px-8 py-3 text-sm rounded-full ${
+                    !size ? 'opacity-50 cursor-not-allowed' : 'active:bg-blue-700'
+                  }`}
+                >
+                  PREORDER NOW
+                </button>
+              )
+            ) : (
+              <button 
+                onClick={() => {
+                  if (token) {
+                    addToCart(productData?._id, size)
+                  } else {
+                    navigate('/login')
+                  }
+                }}
+                disabled={!size}
+                className={`bg-black text-white px-8 py-3 text-sm rounded-full ${
+                  !size ? 'opacity-50 cursor-not-allowed' : 'active:bg-gray-700'
+                }`}
+              >
+                ADD TO CART
+              </button>
+            )}
             <hr className='mt-8 sm:w-4/5' />
             <div className='text-sm text-gray-500 mt-5 flex flex-col gap-1'>
               <p>100% Original Product</p>
@@ -125,6 +231,97 @@ const Product = () => {
         {/*  ----------- Related Products -----------*/}
         <RelatedProducts category={productData?.category || ''} subcategory={productData?.subcategory || ''} id={productId} />
       </div>
+
+      {/* ----------- Address Dialog ----------- */}
+      <Dialog open={addressDialogOpen} onOpenChange={setAddressDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Shipping Address</DialogTitle>
+            <DialogDescription>
+              Please enter your shipping details to complete the preorder.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Input
+                  placeholder="First Name"
+                  value={address.firstName}
+                  onChange={(e) => setAddress({...address, firstName: e.target.value})}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Input
+                  placeholder="Last Name"
+                  value={address.lastName}
+                  onChange={(e) => setAddress({...address, lastName: e.target.value})}
+                />
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Input
+                type="email"
+                placeholder="Email"
+                value={address.email}
+                onChange={(e) => setAddress({...address, email: e.target.value})}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Input
+                type="tel"
+                placeholder="Phone Number"
+                value={address.phone}
+                onChange={(e) => setAddress({...address, phone: e.target.value})}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Input
+                placeholder="Street Address"
+                value={address.street}
+                onChange={(e) => setAddress({...address, street: e.target.value})}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                placeholder="City"
+                value={address.city}
+                onChange={(e) => setAddress({...address, city: e.target.value})}
+              />
+              <Input
+                placeholder="State"
+                value={address.state}
+                onChange={(e) => setAddress({...address, state: e.target.value})}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                placeholder="Country"
+                value={address.country}
+                onChange={(e) => setAddress({...address, country: e.target.value})}
+              />
+              <Input
+                placeholder="Zipcode"
+                value={address.zipcode}
+                onChange={(e) => setAddress({...address, zipcode: e.target.value})}
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-4">
+            <button
+              onClick={() => setAddressDialogOpen(false)}
+              className="px-4 py-2 text-sm border rounded-full hover:bg-gray-100"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handlePreorderSubmit}
+              className="px-4 py-2 text-sm bg-blue-600 text-white rounded-full hover:bg-blue-700"
+            >
+              Confirm Preorder
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

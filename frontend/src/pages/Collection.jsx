@@ -12,50 +12,86 @@ import {
 } from "@/components/ui/select"
 import { assets } from '@/assets/assets'
 import { CollectionSkeleton } from '@/features/collection/CollectionSkeleton'
+import { useSearchParams } from 'react-router-dom'
 
 const Collection = () => {
   const { products, search, showSearch, isLoading } = useContext(ShopContext)
+  const [searchParams] = useSearchParams()
+  const category = searchParams.get('category')
+  const subcategory = searchParams.get('subcategory')
 
   // State for filters
   const [showFilter, setShowFilter] = useState(false)
   const [filterProducts, setFilterProducts] = useState([])
-  const [category, setCategory] = useState([])
-  const [subCategory, setSubCategory] = useState([])
+  const [selectedCategory, setSelectedCategory] = useState([])
+  const [selectedSubCategory, setSelectedSubCategory] = useState([])
   const [sortType, setSortType] = useState('relevant')
   const [bestsellerOnly, setBestsellerOnly] = useState(false) // Bestseller filter
+  const [availableSubcategories, setAvailableSubcategories] = useState([])
 
   // Toggle category filter
   const toggleCategory = (value) => {
-    setCategory(prev => prev.includes(value) ? prev.filter(item => item !== value) : [...prev, value])
+    setSelectedCategory(prev => prev.includes(value) ? prev.filter(item => item !== value) : [...prev, value])
   }
 
   // Toggle subcategory filter
   const toggleSubCategory = (value) => {
-    setSubCategory(prev => prev.includes(value) ? prev.filter(item => item !== value) : [...prev, value])
+    setSelectedSubCategory(prev => prev.includes(value) ? prev.filter(item => item !== value) : [...prev, value])
+  }
+
+  // Update available subcategories based on selected categories
+  const updateAvailableSubcategories = () => {
+    if (selectedCategory.length === 0) {
+      // If no category is selected, show all unique subcategories
+      const allSubcategories = [...new Set(products.map(item => item.subcategory))]
+      setAvailableSubcategories(allSubcategories)
+    } else {
+      // Show subcategories only for selected categories
+      const filteredSubcategories = [...new Set(
+        products
+          .filter(item => selectedCategory
+            .map(cat => cat.toLowerCase())
+            .includes(item.category.toLowerCase()))
+          .map(item => item.subcategory)
+      )]
+      setAvailableSubcategories(filteredSubcategories)
+    }
   }
 
   // Apply filters to products
   const applyFilter = () => {
     let filtered = products;
 
+    console.log('Initial products:', filtered)
+
     // Search filter
     if (showSearch && search) {
-      filtered = filtered.filter(item => item.name.toLowerCase().includes(search.toLowerCase()))
+      filtered = filtered.filter(item => 
+        item.name.toLowerCase().includes(search.toLowerCase())
+      )
     }
 
     // Category filter
-    if (category.length > 0) {
-      filtered = filtered.filter(item => category.includes(item.category))
+    if (selectedCategory.length > 0) {
+      filtered = filtered.filter(item => 
+        selectedCategory.map(cat => cat.toLowerCase())
+          .includes(item.category.toLowerCase())
+      )
+      console.log('Filtered by category:', filtered)
     }
 
     // Subcategory filter
-    if (subCategory.length > 0) {
-      filtered = filtered.filter(item => subCategory.includes(item.subcategory))
+    if (selectedSubCategory.length > 0) {
+      filtered = filtered.filter(item => 
+        selectedSubCategory.map(subCat => subCat.toLowerCase())
+          .includes(item.subcategory.toLowerCase())
+      )
+      console.log('Filtered by subcategory:', filtered)
     }
 
     // Bestseller filter
     if (bestsellerOnly) {
-      filtered = filtered.filter(item => item.bestseller) // Assuming `bestseller` is a boolean
+      filtered = filtered.filter(item => item.bestseller)
     }
 
     setFilterProducts(filtered)
@@ -83,13 +119,24 @@ const Collection = () => {
   // Run filter logic when dependencies change
   useEffect(() => {
     applyFilter()
-  }, [category, subCategory, search, showSearch, products, bestsellerOnly])
+  }, [selectedCategory, selectedSubCategory, search, showSearch, products, bestsellerOnly])
 
   useEffect(() => {
     sortProduct()
   }, [sortType])
 
-  
+  useEffect(() => {
+    if (category && subcategory) {
+      // Filter your products based on category and subcategory
+      setSelectedCategory([category])
+      setSelectedSubCategory([subcategory])
+    }
+  }, [category, subcategory])
+
+  // Add new useEffect
+  useEffect(() => {
+    updateAvailableSubcategories()
+  }, [selectedCategory, products])
 
   return (
     <div className='flex flex-col px-4 sm:px-8 md:flex-row gap-1 sm:gap-10 pt-10 border-t animate-fade animate-duration-500'>
@@ -106,7 +153,7 @@ const Collection = () => {
           <div className='flex flex-col gap-3 text-sm font-light text-gray-700'>
             {["Men", "Women", "Kids"].map(cat => (
               <div key={cat} className="items-center flex space-x-2">
-                <Checkbox id={cat} onCheckedChange={() => toggleCategory(cat)} />
+                <Checkbox id={cat} onCheckedChange={() => toggleCategory(cat)} checked={selectedCategory.includes(cat)} />
                 <label htmlFor={cat} className="text-sm leading-none">{cat}</label>
               </div>
             ))}
@@ -117,20 +164,34 @@ const Collection = () => {
         <div className={`border border-gray-300 pl-5 py-3 my-5 ${showFilter ? '' : 'hidden'} md:block`}>
           <p className='mb-3 text-sm font-medium'>TYPE</p>
           <div className='flex flex-col gap-3 text-sm font-light text-gray-700'>
-            {["Topwear", "Bottomwear", "Winterwear"].map(subCat => (
+            {availableSubcategories.map(subCat => (
               <div key={subCat} className="items-center flex space-x-2">
-                <Checkbox id={subCat} onCheckedChange={() => toggleSubCategory(subCat)} />
-                <label htmlFor={subCat} className="text-sm leading-none">{subCat}</label>
+                <Checkbox 
+                  id={subCat} 
+                  onCheckedChange={() => toggleSubCategory(subCat)} 
+                  checked={selectedSubCategory.includes(subCat)}
+                />
+                <label 
+                  htmlFor={subCat} 
+                  className="text-sm leading-none capitalize"
+                >
+                  {subCat}
+                </label>
               </div>
             ))}
           </div>
+          {availableSubcategories.length === 0 && (
+            <p className="text-sm text-gray-500 italic">
+              Select a category to see available types
+            </p>
+          )}
         </div>
 
         {/* Bestseller Filter */}
         <div className={`border border-gray-300 pl-5 py-3 my-5 ${showFilter ? '' : 'hidden'} md:block`}>
           <p className='mb-3 text-sm font-medium'>EXTRAS</p>
           <div className="items-center flex space-x-2">
-            <Checkbox id="Bestseller" onCheckedChange={() => setBestsellerOnly(!bestsellerOnly)} />
+            <Checkbox id="Bestseller" onCheckedChange={() => setBestsellerOnly(!bestsellerOnly)} checked={bestsellerOnly} />
             <label htmlFor="Bestseller" className="text-sm leading-none font-light">Bestsellers</label>
           </div>
         </div>

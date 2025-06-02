@@ -7,7 +7,7 @@ const LatestCollection = () => {
   const { products = [], isLoading } = useContext(ShopContext); // make sure it is array
 
   // useMemo to avoid rerenders
-  const latestProducts = useMemo(() => products.slice(0, 8), [products]);
+  const latestProducts = useMemo(() => products.slice(0, 9), [products]);
 
   if (isLoading) {
     return <div className='my-10 gap-6 flex justify-center items-center'>
@@ -36,6 +36,7 @@ const LatestCollection = () => {
               image={item.image}
               name={item.name}
               price={item.price}
+              preorder={item.preorder}
             />
           ))}
         </div>

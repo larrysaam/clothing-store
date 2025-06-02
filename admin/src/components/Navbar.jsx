@@ -5,7 +5,7 @@ import { assets } from '../assets/assets'
 const Navbar = ({setToken}) => {
   return (
     <div className='flex items-center py-2 px-[4%] justify-between'>
-        <img className='w-[max(10%,80px)]' src={assets.logo} alt='' />
+        <img className='w-[max(7%,30px)]' src={assets.logo} alt='' />
         <div className='text-xl'>Our Shop's Admin Panel</div>
         <button 
         onClick={()=>setToken('')}

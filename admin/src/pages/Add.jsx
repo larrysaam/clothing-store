@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import axios from 'axios'
 import { backendUrl } from '../App'
 import { toast } from "sonner"
@@ -25,9 +25,13 @@ import 'filepond-plugin-image-preview/dist/filepond-plugin-image-preview.css';
 // Register the FilePond plugins
 registerPlugin(FilePondPluginImageExifOrientation, FilePondPluginImagePreview);
 
+const CLOTHING_SIZES = ['S', 'M', 'L', 'XL', '2XL', '3XL', '4XL']
+const SHOE_SIZES = Array.from({ length: 23 }, (_, i) => (i + 26).toString())
+const KIDS_SHOE_SIZES = Array.from({ length: 13 }, (_, i) => (i + 26).toString())
 
 const Add = ({token}) => {
   const pondRef = useRef()
+  const [availableSubcategories, setAvailableSubcategories] = useState([])
 
   const validationSchema = z.object({
     images: z.any()
@@ -43,7 +47,8 @@ const Add = ({token}) => {
     category: z.string().min(1, {message: "Category is required"}),
     subcategory: z.string().min(1, {message: "Subcategory is required"}),
     sizes: z.array(z.string()).nonempty({message: "Choose at least 1 size"}),
-    bestseller: z.boolean()
+    bestseller: z.boolean(),
+    preorder: z.boolean()
   })
 
   const { control, handleSubmit, reset, watch, formState: { errors, isSubmitSuccessful } } = useForm({
@@ -57,6 +62,7 @@ const Add = ({token}) => {
       subcategory: "",
       sizes: [],
       bestseller: false,
+      preorder: false,
     },
   })
  
@@ -80,6 +86,7 @@ const Add = ({token}) => {
       formData.append('subcategory', values.subcategory);
       formData.append('sizes', JSON.stringify(sortedSizes));
       formData.append('bestseller', values.bestseller);
+      formData.append('preorder', values.preorder);
       for (let i=0; i < values.images.length; i++) {
         formData.append(`image${i+1}`, values.images[i].file);
       }
@@ -99,12 +106,54 @@ const Add = ({token}) => {
     }
   }
 
+  const fetchSubcategories = async (selectedCategory) => {
+    try {
+      const response = await axios.get(`${backendUrl}/api/categories`, {
+        headers: { token }
+      })
+      if (response.data.success) {
+        const { categories } = response.data
+        setAvailableSubcategories(categories[selectedCategory] || [])
+      }
+    } catch (error) {
+      toast.error('Failed to fetch subcategories')
+      console.error(error)
+    }
+  }
+
   useEffect(() => {
     reset()
     pondRef.current.removeFiles()
   }, [isSubmitSuccessful])
 
+  useEffect(() => {
+    const selectedCategory = watch('category')
+    if (selectedCategory) {
+      fetchSubcategories(selectedCategory)
+    }
+  }, [])
+
+  useEffect(() => {
+    const subcategory = watch('subcategory')
+    if (subcategory) {
+      // Reset sizes when subcategory changes
+      reset({ ...watch(), sizes: [] })
+    }
+  }, [watch('subcategory')])
+
   const images = watch('images') || [];
+
+  const getSizeOptions = () => {
+    const category = watch('category')
+    const subcategory = watch('subcategory')
+
+    if (subcategory?.toLowerCase().includes('shoes') || 
+        subcategory?.toLowerCase().includes('sneakers') || 
+        subcategory?.toLowerCase().includes('boots')) {
+      return category === 'Kids' ? KIDS_SHOE_SIZES : SHOE_SIZES
+    }
+    return CLOTHING_SIZES
+  }
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate className='flex flex-col w-full items-start gap-3'>
@@ -178,23 +227,34 @@ const Add = ({token}) => {
         <div>
           <p className='mb-2'>Product category</p>
           <Controller
-              name="category"
-              control={control}
-              render={({ field, ref }) => (
-                <Select {...field} ref={ref} error={errors.category?.message} 
-                className='border-2 border-gray-300 px-2' value={field.value || ""}
-                onValueChange={(value) => field.onChange(value)}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="Choose..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Men">Men</SelectItem>
-                  <SelectItem value="Women">Women</SelectItem>
-                  <SelectItem value="Kids">Kids</SelectItem>
-                </SelectContent>
-              </Select>
-              )}
-          />
+  name="category"
+  control={control}
+  render={({ field, ref }) => (
+    <Select 
+      {...field} 
+      ref={ref} 
+      error={errors.category?.message} 
+      className='border-2 border-gray-300 px-2' 
+      value={field.value || ""}
+      onValueChange={(value) => {
+        field.onChange(value)
+        // Reset subcategory when category changes
+        reset({ ...watch(), subcategory: '' })
+        // Fetch subcategories for selected category
+        fetchSubcategories(value)
+      }}
+    >
+      <SelectTrigger className="w-[140px]">
+        <SelectValue placeholder="Choose..." />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="Men">Men</SelectItem>
+        <SelectItem value="Women">Women</SelectItem>
+        <SelectItem value="Kids">Kids</SelectItem>
+      </SelectContent>
+    </Select>
+  )}
+/>
         {errors.category && <p className="text-red-500 text-sm">{errors.category.message}</p>}
 
 
@@ -206,16 +266,24 @@ const Add = ({token}) => {
           name="subcategory"
           control={control}
           render={({ field, ref }) => (
-            <Select {...field} ref={ref} error={errors.subcategory?.message} 
-              className='w-full max-w-[500px] px-3 py-2' value={field.value || ""}
-              onValueChange={(value) => field.onChange(value)}>
+            <Select 
+              {...field} 
+              ref={ref} 
+              error={errors.subcategory?.message} 
+              className='w-full max-w-[500px] px-3 py-2' 
+              value={field.value || ""}
+              onValueChange={(value) => field.onChange(value)}
+              disabled={!watch('category') || availableSubcategories.length === 0}
+            >
             <SelectTrigger className="w-[140px]">
               <SelectValue placeholder="Choose..." />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="Topwear">Topwear</SelectItem>
-              <SelectItem value="Bottomwear">Bottomwear</SelectItem>
-              <SelectItem value="Winterwear">Winterwear</SelectItem>
+              {availableSubcategories.map((subcategory) => (
+                <SelectItem key={subcategory} value={subcategory}>
+                  {subcategory}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           )}
@@ -249,19 +317,25 @@ const Add = ({token}) => {
           name="sizes"
           control={control}
           render={({ field, ref }) => (
-            <ToggleGroup type="multiple" {...field} ref={ref} error={errors.sizes?.message} size="lg" className='gap-1'
-            value={field.value || ""} onValueChange={(value) => field.onChange(value)}>
-              <ToggleGroupItem className='border rounded-md data-[state=on]:bg-gray-100 data-[state=on]:font-medium data-[state=on]:border-black'
-              value="XS">XS</ToggleGroupItem>
-              <ToggleGroupItem className='border rounded-md data-[state=on]:bg-gray-100 data-[state=on]:font-medium data-[state=on]:border-black'
-              value="S">S</ToggleGroupItem>
-              <ToggleGroupItem className='border rounded-md data-[state=on]:bg-gray-100 data-[state=on]:font-medium data-[state=on]:border-black'
-              value="M">M</ToggleGroupItem>
-              <ToggleGroupItem className='border rounded-md data-[state=on]:bg-gray-100 data-[state=on]:font-medium data-[state=on]:border-black'
-              value="L">L</ToggleGroupItem>
-              <ToggleGroupItem className='border rounded-md data-[state=on]:bg-gray-100 data-[state=on]:font-medium data-[state=on]:border-black'
-              value="XL">XL</ToggleGroupItem>
-            </ToggleGroup>
+            <ToggleGroup 
+  type="multiple" 
+  {...field} 
+  ref={ref} 
+  error={errors.sizes?.message} 
+  className='gap-1 flex flex-wrap max-w-[500px]'
+  value={field.value || ""} 
+  onValueChange={(value) => field.onChange(value)}
+>
+  {getSizeOptions().map((size) => (
+    <ToggleGroupItem 
+      key={size}
+      className='border rounded-md data-[state=on]:bg-gray-100 data-[state=on]:font-medium data-[state=on]:border-black'
+      value={size}
+    >
+      {size}
+    </ToggleGroupItem>
+  ))}
+</ToggleGroup>
           )}
         />
         {errors.sizes && <p className="text-red-500 text-sm">{errors.sizes.message}</p>}
@@ -284,6 +358,29 @@ const Add = ({token}) => {
               )}
           />
       </div>
+
+      <div className='flex items-center gap-2 mt-2'>
+  <label
+    htmlFor="preorder"
+    className="cursor-pointer leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+  >
+    Set as preorder
+  </label>
+  <Controller
+    name="preorder"
+    control={control}
+    render={({ field, ref }) => (
+      <Checkbox 
+        id="preorder" 
+        aria-checked={field.value} 
+        {...field} 
+        ref={ref} 
+        checked={field.value}
+        onCheckedChange={(value)=> field.onChange(value)}
+      />
+    )}
+  />
+</div>
 
       <button type='submit' className='group text-sm mt-4 cursor-pointer bg-gray-700 hover:bg-gray-900 text-white pl-5 pr-4 py-2 rounded-lg flex items-center'>
         <p>Add product</p>
