@@ -77,50 +77,70 @@ const Preorders = ({token}) => {
   }, [token])
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">Preorders</h1>
+    <div className="p-4 sm:p-6">
+      <h1 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">Preorders</h1>
       
       <div className="space-y-4">
         {currentPreorders.map((preorder) => (
-          <div key={preorder._id} className="border rounded-lg p-4 space-y-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div>
-                <h3 className="font-semibold">Customer Details</h3>
-                <p>{preorder.address.firstName} {preorder.address.lastName}</p>
-                <p>{preorder.address.email}</p>
-                <p>{preorder.address.phone}</p>
+          <div key={preorder._id} className="border rounded-lg p-3 sm:p-4 space-y-3 sm:space-y-4">
+            {/* Stack all sections vertically on mobile */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Customer Details */}
+              <div className="bg-gray-50 p-3 rounded-md">
+                <h3 className="font-semibold text-sm sm:text-base mb-2">Customer Details</h3>
+                <div className="space-y-1 text-sm">
+                  <p>{preorder.address.firstName} {preorder.address.lastName}</p>
+                  <p className="text-gray-600">{preorder.address.email}</p>
+                  <p className="text-gray-600">{preorder.address.phone}</p>
+                </div>
               </div>
               
-              <div>
-                <h3 className="font-semibold">Items</h3>
-                {preorder.items.map((item, index) => (
-                  <p key={index}>
-                    {item.name} - {item.size} x{item.quantity}
+              {/* Items */}
+              <div className="bg-gray-50 p-3 rounded-md">
+                <h3 className="font-semibold text-sm sm:text-base mb-2">Items</h3>
+                <div className="space-y-1 text-sm">
+                  {preorder.items.map((item, index) => (
+                    <p key={index} className="flex justify-between">
+                      <span>{item.name} - {item.size}</span>
+                      <span className="text-gray-600">x{item.quantity}</span>
+                    </p>
+                  ))}
+                </div>
+              </div>
+
+              {/* Deposit */}
+              <div className="bg-gray-50 p-3 rounded-md">
+                <h3 className="font-semibold text-sm sm:text-base mb-2">Deposit</h3>
+                <div className="space-y-1 text-sm">
+                  <p className="flex justify-between">
+                    <span>Amount:</span>
+                    <span>{currency}{preorder.items[0].price}</span>
                   </p>
-                ))}
+                  <p className="flex justify-between">
+                    <span>Status:</span>
+                    <span className={preorder.payment ? 'text-green-600' : 'text-orange-600'}>
+                      {preorder.payment ? 'Paid' : 'Pending'}
+                    </span>
+                  </p>
+                  {!preorder.payment && (
+                    <button
+                      onClick={() => depositHandler(preorder._id)}
+                      className="w-full mt-2 px-3 py-2 bg-green-500 text-white rounded-md text-sm hover:bg-green-600 transition-colors"
+                    >
+                      Validate Deposit
+                    </button>
+                  )}
+                </div>
               </div>
 
-              <div>
-                <h3 className="font-semibold">Deposit</h3>
-                <p>Amount: {currency}{preorder.items[0].price}</p>
-                <p>Status: {preorder.payment ? 'Paid' : 'Pending'}</p>
-                {!preorder.payment && (
-                  <button
-                    onClick={() => depositHandler(preorder._id)}
-                    className="mt-2 px-3 py-1 bg-green-500 text-white rounded-md text-sm"
-                  >
-                    Validate Deposit
-                  </button>
-                )}
-              </div>
-
-              <div>
-                <h3 className="font-semibold">Status</h3>
+              {/* Status */}
+              <div className="bg-gray-50 p-3 rounded-md">
+                <h3 className="font-semibold text-sm sm:text-base mb-2">Status</h3>
                 <Select
                   defaultValue={preorder.status}
                   onValueChange={(value) => statusHandler(value, preorder._id)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full text-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -137,13 +157,13 @@ const Preorders = ({token}) => {
         ))}
       </div>
 
-      {/* Pagination */}
+      {/* Mobile-friendly pagination */}
       {preorders.length > preordersPerPage && (
-        <div className="flex justify-center gap-2 mt-6">
+        <div className="flex flex-wrap justify-center gap-2 mt-6">
           <button
             onClick={() => paginate(currentPage - 1)}
             disabled={currentPage === 1}
-            className="px-3 py-1 text-sm border rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 text-sm border rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
           >
             Previous
           </button>
@@ -152,7 +172,7 @@ const Preorders = ({token}) => {
             <button
               key={index + 1}
               onClick={() => paginate(index + 1)}
-              className={`px-3 py-1 text-sm border rounded-md
+              className={`px-4 py-2 text-sm border rounded-md hover:bg-gray-50
                 ${currentPage === index + 1 ? 'bg-gray-200' : ''}`}
             >
               {index + 1}
@@ -162,7 +182,7 @@ const Preorders = ({token}) => {
           <button
             onClick={() => paginate(currentPage + 1)}
             disabled={currentPage === totalPages}
-            className="px-3 py-1 text-sm border rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 text-sm border rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
           >
             Next
           </button>

@@ -40,7 +40,7 @@ const Dashboard = ({ token }) => {
   }, [token])
 
   return (
-    <div className="p-6">
+    <div className="sm:p-6 p-0">
       <h1 className="text-2xl font-bold mb-6">Dashboard Overview</h1>
       
       {/* Stats Grid */}

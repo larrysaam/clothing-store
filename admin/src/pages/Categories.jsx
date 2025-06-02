@@ -139,17 +139,17 @@ const Categories = ({ token }) => {
   }
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">Category Management</h1>
+    <div className="p-4 sm:p-6">
+      <h1 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">Category Management</h1>
 
       {/* Add new subcategory section */}
-      <form onSubmit={handleAdd} className="mb-8 bg-white p-6 rounded-lg shadow-sm">
-        <h2 className="text-lg font-semibold mb-4">Add New Subcategory</h2>
-        <div className="flex gap-4">
+      <form onSubmit={handleAdd} className="mb-6 sm:mb-8 bg-white p-4 sm:p-6 rounded-lg shadow-sm">
+        <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Add New Subcategory</h2>
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
           <select
             value={selectedMainCategory}
             onChange={(e) => setSelectedMainCategory(e.target.value)}
-            className="border rounded-md px-3 py-2"
+            className="border rounded-md px-3 py-2 w-full sm:w-auto"
             disabled={isSubmitting}
           >
             {Object.keys(categories).map(category => (
@@ -161,14 +161,14 @@ const Categories = ({ token }) => {
             value={newSubcategory}
             onChange={(e) => setNewSubcategory(e.target.value)}
             placeholder="Enter subcategory name"
-            className="border rounded-md px-3 py-2 flex-1"
+            className="border rounded-md px-3 py-2 w-full"
             disabled={isSubmitting}
           />
           <button
             type="submit"
             disabled={isSubmitting}
-            className="flex items-center gap-2 bg-black text-white px-4 py-2 rounded-md hover:bg-gray-800 
-            disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center justify-center gap-2 bg-black text-white px-4 py-2 rounded-md 
+            hover:bg-gray-800 w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <BsPlus size={20} />
             {isSubmitting ? 'Adding...' : 'Add'}
@@ -177,17 +177,17 @@ const Categories = ({ token }) => {
       </form>
 
       {/* Categories list */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-4 sm:gap-6">
         {Object.entries(categories).map(([mainCategory, subcategories]) => (
-          <div key={mainCategory} className="bg-white p-6 rounded-lg shadow-sm">
-            <h2 className="text-lg font-semibold mb-4">{mainCategory}</h2>
+          <div key={mainCategory} className="bg-white p-4 sm:p-6 rounded-lg shadow-sm">
+            <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">{mainCategory}</h2>
             {Array.isArray(subcategories) && subcategories.length === 0 ? (
               <p className="text-gray-500 text-sm">No subcategories yet</p>
             ) : (
               <ul className="space-y-2">
                 {Array.isArray(subcategories) ? subcategories.map((subcategory, index) => (
                   <li key={`${mainCategory}-${subcategory}-${index}`} 
-                      className="flex items-center justify-between py-2 border-b">
+                      className="flex items-center justify-between py-2 border-b text-sm sm:text-base">
                     {editMode === `${mainCategory}-${subcategory}` ? (
                       <input
                         type="text"
@@ -198,24 +198,24 @@ const Categories = ({ token }) => {
                             e.target.blur()
                           }
                         }}
-                        className="border rounded-md px-2 py-1 w-full mr-2"
+                        className="border rounded-md px-2 py-1 w-full mr-2 text-sm"
                         autoFocus
                       />
                     ) : (
-                      <span>{subcategory}</span>
+                      <span className="break-words flex-1 pr-2">{subcategory}</span>
                     )}
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 shrink-0">
                       <button
                         onClick={() => setEditMode(`${mainCategory}-${subcategory}`)}
-                        className="p-1 hover:text-blue-600 transition-colors"
+                        className="p-2 hover:text-blue-600 transition-colors"
                       >
-                        <BsPencil size={16} />
+                        <BsPencil size={14} className="sm:w-4 sm:h-4" />
                       </button>
                       <button
                         onClick={() => handleDelete(mainCategory, subcategory)}
-                        className="p-1 hover:text-red-600 transition-colors"
+                        className="p-2 hover:text-red-600 transition-colors"
                       >
-                        <BsTrash size={16} />
+                        <BsTrash size={14} className="sm:w-4 sm:h-4" />
                       </button>
                     </div>
                   </li>
