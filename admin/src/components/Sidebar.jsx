@@ -1,9 +1,11 @@
 import React, { useState } from 'react'
 import { NavLink } from 'react-router-dom'
-import { BsGrid } from 'react-icons/bs'
+import { BsGrid,  } from 'react-icons/bs'
 import { HiMenuAlt3 } from 'react-icons/hi'
 import { IoMdClose } from 'react-icons/io'
 import { assets } from '../assets/assets'
+import { IoSettings } from "react-icons/io5";
+import { MdLibraryAddCheck } from "react-icons/md";
 
 const Sidebar = () => {
   const [isOpen, setIsOpen] = useState(false)
@@ -58,7 +60,8 @@ const Sidebar = () => {
             className='flex items-center gap-3 border border-gray-300 border-r-0 px-3 py-2 rounded-l'
             onClick={() => setIsOpen(false)}
           >
-            <img className='w-5 h-5' src={assets.addIcon} alt='add-icon' />
+
+            <MdLibraryAddCheck size={20} /> 
             <p className='block'>Category</p>
           </NavLink>
           
@@ -97,6 +100,16 @@ const Sidebar = () => {
             <img className='w-5 h-5' src={assets.orderIcon} alt='order-icon' />
             <p className='block'>PreOrders</p>
           </NavLink>
+
+          <NavLink 
+            to='/settings' 
+            className='flex items-center gap-3 border border-gray-300 border-r-0 px-3 py-2 rounded-l'
+            onClick={() => setIsOpen(false)}
+          >
+            <IoSettings size={20} />
+            <p className='block'>Settings</p>
+          </NavLink>
+
            <button 
                 onClick={()=>setToken('')}
                 className='cursor-pointer bg-gray-700 hover:bg-gray-900 text-white px-5 py-2 sm:px-7 sm:py-3 rounded-lg text-xs sm:text-sm'>

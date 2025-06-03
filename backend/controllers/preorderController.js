@@ -1,6 +1,7 @@
 import PreOrder from '../models/preorderModel.js'
 import Product from '../models/productModel.js'
 import User from '../models/userModel.js'
+import { sendOrderNotification } from '../utils/emailService.js'
 
 export const getAllPreorders = async (req, res) => {
   try {
@@ -107,6 +108,9 @@ export const createPreorder = async (req, res) => {
     await newPreorder.save({ 
       writeConcern: { w: 1, wtimeout: 5000 }
     })
+
+    // Send email notification with isPreorder flag
+    await sendOrderNotification(newPreorder, true)
 
     res.json({
       success: true,

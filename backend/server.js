@@ -10,6 +10,7 @@ import orderRouter from './routes/orderRoute.js'
 import DashboardRouter from './routes/dashboardRoute.js'
 import CategoryRouter from './routes/categoryRoute.js'
 import PreorderRouter from './routes/preorderRoute.js'
+import settingRoute from './routes/settingRoute.js'
 
 //App config
 
@@ -17,6 +18,8 @@ const app = express()
 const port = process.env.PORT || 4000
 connectDB()
 connectCloudinary()
+
+
 
 
 //middlewares
@@ -32,6 +35,7 @@ app.use('/api/order', orderRouter)
 app.use('/api/preorder', PreorderRouter)
 app.use('/api/admin', DashboardRouter)
 app.use('/api/categories', CategoryRouter)
+app.use('/api/settings', settingRoute)
 
 app.get('/', (req, res) => {
     res.send("API working")

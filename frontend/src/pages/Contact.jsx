@@ -7,7 +7,7 @@ const Contact = () => {
   const { navigate } = useContext(ShopContext);
 
   return (
-    <div className='animate-fade animate-duration-500'>
+    <div className='px-4 sm:px-14 animate-fade animate-duration-500'>
       {/* Page Title */}
       <div className='text-center text-2xl pt-10 border-t'>
         <Title text1='CONTACT' text2='US' />

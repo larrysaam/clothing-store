@@ -57,6 +57,7 @@ const Placeorder = () => {
     onSuccess: (res) => {
       if (res.data.success) {
         resetCart()
+        toast.success('Order placed successfully!')
         navigate('/orders')
       } else {
         toast.error(res.data.message)
@@ -73,6 +74,7 @@ const Placeorder = () => {
       axios.post(`${backendUrl}/api/order/stripe`, orderData, { headers: { token } }),
     onSuccess: (res) => {
       if (res.data.success) {
+        toast.success('Redirecting to payment...')
         window.location.replace(res.data.session_url)
       } else {
         toast.error(res.data.message)
@@ -82,6 +84,9 @@ const Placeorder = () => {
       toast.error(error.message)
     },
   })
+
+  // Check if any mutation is loading
+  const isLoading = placeOrderMutation.isPending || stripeOrderMutation.isPending
 
   // Collect data from cart + form and submit
   const onSubmitHandler = async (data) => {
@@ -124,8 +129,7 @@ const Placeorder = () => {
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmitHandler)}
-      className='flex flex-col sm:flex-row justify-between lg:justify-evenly gap-4 pt-5 sm:pt-14 min-h-[70vh] border-t animate-fade animate-duration-500'>
+    <form onSubmit={handleSubmit(onSubmitHandler)} className='flex flex-col sm:flex-row justify-between lg:justify-evenly gap-4 pt-5 sm:pt-14 min-h-[70vh] border-t animate-fade animate-duration-500'>
 
       {/* Left Side - Form */}
       <div className='flex flex-col gap-4 w-full sm:max-w-[480px]'>
@@ -228,10 +232,24 @@ const Placeorder = () => {
           </div>
 
           <div className='w-full text-end mt-8'>
-            <button type='submit'
-              className='bg-black text-white px-16 py-3 text-sm transistion-all duration-500 hover:bg-slate-700'>
-              PLACE ORDER
-            </button>
+            <button 
+              type='submit'
+              disabled={isLoading}
+              className={`px-16 py-3 text-sm transition-all duration-300 
+              ${isLoading 
+                ? 'bg-gray-400 cursor-not-allowed' 
+                : 'bg-black hover:bg-slate-700'} 
+              text-white`}
+          >
+            {isLoading ? (
+              <span className="flex items-center justify-center gap-2">
+                <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
+                PLACING ORDER...
+              </span>
+            ) : (
+              'PLACE ORDER'
+            )}
+          </button>
           </div>
         </div>
       </div>

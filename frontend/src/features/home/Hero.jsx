@@ -1,24 +1,40 @@
 import React, { useState, useEffect } from 'react'
-import { assets } from '@/assets/assets'
 import { Link } from 'react-router-dom'
+import { useSettings } from '@/hooks/useSettings'
+import { assets } from '@/assets/assets'
 
 const Hero = () => {
-  const images = [
-    assets.hero1, // Replace with the actual image paths
+  const { settings, loading } = useSettings()
+  const [currentIndex, setCurrentIndex] = useState(0)
+
+  // Fallback images in case settings aren't loaded
+  const fallbackImages = [
+    assets.hero1,
     assets.hero2,
     assets.hero3,
     assets.hero4,
   ]
 
-  const [currentIndex, setCurrentIndex] = useState(0)
+  // Use settings images if available, otherwise use fallback
+  const images = settings?.images?.hero?.length ? settings.images.hero : fallbackImages
 
   useEffect(() => {
+      { console.log('Hero images:', settings)}
+
     const interval = setInterval(() => {
       setCurrentIndex((prevIndex) => (prevIndex + 1) % images.length)
-    }, 5000) // 2 seconds interval
+    }, 5000)
 
     return () => clearInterval(interval)
-  }, [images.length])
+  }, [images.length, settings])
+
+  if (loading) {
+    return (
+      <div className='relative w-full h-[500px] sm:h-[600px] lg:h-[700px] bg-gray-200 animate-pulse'>
+        {/* Loading state */}
+      </div>
+    )
+  }
 
   return (
     <div className='relative w-full h-[500px] sm:h-[600px] lg:h-[700px] overflow-hidden'>
@@ -30,7 +46,7 @@ const Hero = () => {
       />
 
       {/* Text and Buttons */}
-      <div className='absolute bottom-10 left-10 text-white'>
+      <div className='absolute bottom-20 left-10 text-white'>
         <h1 className='text-xl sm:text-5xl lg:text-7xl font-bold leading-tight'>
           TURN OFFSEASON ON
         </h1>
@@ -39,17 +55,12 @@ const Hero = () => {
         </p>
         <div className='mt-6 flex gap-4'>
           <Link
-            to='/shop'
+            to='/collection'
             className='px-6 py-3 bg-white text-black font-medium rounded-full hover:bg-gray-200 transition'
           >
             Shop
           </Link>
-          <Link
-            to='/shop-kids'
-            className='px-6 py-3 bg-white text-black font-medium rounded-full hover:bg-gray-200 transition'
-          >
-            Shop Kids'
-          </Link>
+          
         </div>
       </div>
     </div>

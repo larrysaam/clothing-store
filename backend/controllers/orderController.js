@@ -1,6 +1,7 @@
 import orderModel from "../models/orderModel.js";
 import userModel from "../models/userModel.js";
 import Stripe from 'stripe'
+import { sendOrderNotification } from '../utils/emailService.js'
 
 //global variables
 const currency = 'usd'
@@ -10,8 +11,7 @@ const deliveryCharge = 10
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 //Placing orders using COD method
-const placeOrder = async  (req,res) => {
-
+const placeOrder = async (req, res) => {
     try {
         const { userId, items, amount, address } = req.body;
 
@@ -26,9 +26,17 @@ const placeOrder = async  (req,res) => {
         }
 
         const newOrder = new orderModel(orderData)
-        await newOrder.save()
+        await newOrder.save({ writeConcern: { w: 1 } }) // Set write concern to primary only
+
+        // Send email notification
+        await sendOrderNotification(newOrder)
+
         //clear the cart
-        await userModel.findByIdAndUpdate(userId,{cartData: {}})
+        await userModel.findByIdAndUpdate(
+            userId,
+            { cartData: {} },
+            { writeConcern: { w: 1 } }
+        )
 
         res.json({
             success: true,

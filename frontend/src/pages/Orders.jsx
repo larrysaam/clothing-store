@@ -35,7 +35,7 @@ const Orders = () => {
   })
 
   if (isLoading) {
-    return <div className='my-10 gap-6 flex justify-center items-center'>
+    return <div className='px-4 sm:px-14 my-10 gap-6 flex justify-center items-center'>
         <div className="w-6 h-6 border-4 border-t-gray-800 border-gray-300 rounded-full animate-spin"></div>
         <p className="text-center text-gray-600">Loading your orders...</p>
     </div>
@@ -46,7 +46,7 @@ const Orders = () => {
   }
 
   return (
-    <div className='border-t pt-16 animate-fade animate-duration-500'>
+    <div className='px-4 sm:px-14 border-t pt-16 animate-fade animate-duration-500'>
       <div className='text-2xl'>
         <Title text1='MY' text2='ORDERS' />
       </div>

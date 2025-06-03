@@ -34,7 +34,7 @@ const Cart = () => {
 
   if (cartData.length == 0) {
     return ( 
-      <div className='min-h-[50vh] flex flex-col items-center'>
+      <div className='px-4 sm:px-14 min-h-[50vh] flex flex-col items-center'>
         <div className='text-2xl mb-3 self-start'>
           <Title text1='YOUR' text2='CART'/>
         </div>
@@ -50,7 +50,7 @@ const Cart = () => {
   }
 
   return (
-    <div className='border-t pt-14 animate-fade animate-duration-500'>
+    <div className='px-4 sm:px-14 border-t pt-14 animate-fade animate-duration-500'>
       <div className='text-2xl mb-3'>
         <Title text1='YOUR' text2='CART'/>
       </div>
@@ -60,7 +60,7 @@ const Cart = () => {
           cartData.map((item, index) => {
             const productData = products.find((product) =>  product._id === item.id)
             return (
-              <div key={index} className='py-4 border-t last:border-y text-gray-700 grid grid-cols-[3fr_2fr_0.5fr_0.5fr] sm:grid-cols-[3fr_2fr_0.5fr_0.5fr] items-center gap-4'>
+              <div key={index} className=' py-4 border-t last:border-y text-gray-700 grid grid-cols-[3fr_2fr_0.5fr_0.5fr] sm:grid-cols-[3fr_2fr_0.5fr_0.5fr] items-center gap-4'>
                 <div className='flex items-start gap-6'>
                   <img className='w-20 sm:w-30 aspect-square object-cover' src={productData.image[0]} alt=''/>
                   <div className='flex flex-col justify-between h-full'>

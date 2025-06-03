@@ -1,13 +1,26 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
+import { useSettings } from '@/hooks/useSettings'
 import { assets } from '@/assets/assets'
 
-
 export const Picks = () => {
+    const { settings, loading } = useSettings()
+    
+    // Use settings banner if available, otherwise use fallback
+    const bannerImage = settings?.images?.banner || assets.Picks
+
+    if (loading) {
+        return (
+            <div className='relative w-full h-[400px] sm:h-[500px] lg:h-[700px] bg-gray-200 animate-pulse'>
+                {/* Loading state */}
+            </div>
+        )
+    }
+
     return (
         <div className='relative w-full h-[400px] sm:h-[500px] lg:h-[700px]'>
             <img
-                src={assets.Picks}
+                src={bannerImage}
                 alt='athlete picks'
                 className='w-full h-full object-cover object-center'     
             />
