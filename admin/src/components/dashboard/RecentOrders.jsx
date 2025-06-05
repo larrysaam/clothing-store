@@ -35,7 +35,7 @@ const RecentOrders = ({ orders }) => {
                     </div>
                   </td>
                   <td className="py-2 px-3 text-sm">
-                    ${order.amount}
+                    {import.meta.env.VITE_CURRENCY_SYMBOL}{order.amount}
                   </td>
                   <td className="py-2 px-3 text-sm">
                     <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${

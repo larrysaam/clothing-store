@@ -82,7 +82,7 @@ const Cart = () => {
                     value={productData.price * item.quantity} 
                     format={{ 
                         style: 'currency', 
-                        currency: 'USD', 
+                        currency: import.meta.env.VITE_CURRENCY || 'EUR', 
                         maximumFractionDigits: 2 
                     }} 
                 />

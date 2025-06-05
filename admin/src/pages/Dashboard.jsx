@@ -71,7 +71,7 @@ const Dashboard = ({ token }) => {
         />
         <StatsCard
           title="Total Revenue"
-          value={`$${stats.totalRevenue.toLocaleString()}`}
+          value={`${import.meta.env.VITE_CURRENCY_SYMBOL} ${stats.totalRevenue.toLocaleString()}`}
           icon={<BsCurrencyDollar size={20} />}
           percentage={15}
         />

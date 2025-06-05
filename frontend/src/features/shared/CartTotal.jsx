@@ -20,7 +20,7 @@ const { deliveryFee, getCartAmount } = useContext(ShopContext)
                     value={getCartAmount() ? getCartAmount() : 0} 
                     format={{ 
                         style: 'currency', 
-                        currency: 'USD', 
+                        currency: import.meta.env.VITE_CURRENCY || 'EUR', 
                         maximumFractionDigits: 2 
                     }} 
                 />         
@@ -32,7 +32,7 @@ const { deliveryFee, getCartAmount } = useContext(ShopContext)
                     value={deliveryFee ? deliveryFee : 0} 
                     format={{ 
                         style: 'currency', 
-                        currency: 'USD', 
+                        currency: import.meta.env.VITE_CURRENCY || 'EUR', 
                         maximumFractionDigits: 2 
                     }} 
                 />            
@@ -45,7 +45,7 @@ const { deliveryFee, getCartAmount } = useContext(ShopContext)
                     value={getCartAmount() === 0 ? 0 : getCartAmount() + deliveryFee} 
                     format={{ 
                         style: 'currency', 
-                        currency: 'USD', 
+                        currency: import.meta.env.VITE_CURRENCY || 'EUR', 
                         maximumFractionDigits: 2 
                     }} 
                 />

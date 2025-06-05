@@ -4,7 +4,7 @@ import Stripe from 'stripe'
 import { sendOrderNotification } from '../utils/emailService.js'
 
 //global variables
-const currency = 'usd'
+const currency = process.env.CURRENCY || 'EUR' // Default currency symbol
 const deliveryCharge = 10
 
 //Gateway initialize
@@ -225,7 +225,7 @@ const createPaymentIntent = async (req, res) => {
 
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount * 100),
-      currency: 'usd',
+      currency: process.env.CURRENCY || 'EUR',
       metadata: {
         customerEmail: address.email,
       }

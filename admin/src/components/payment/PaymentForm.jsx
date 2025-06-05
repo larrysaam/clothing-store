@@ -119,7 +119,7 @@ const PaymentForm = ({ amount, orderData, onPaymentSuccess }) => {
         ) : (
           `Pay ${new Intl.NumberFormat('en-US', {
             style: 'currency',
-            currency: 'USD'
+            currency: import.meta.env.VITE_CURRENCY || 'EUR'
           }).format(amount)}`
         )}
       </button>

@@ -101,7 +101,7 @@ const StripeElement = ({ amount, orderData, onOrderComplete }) => {
         ) : (
           `Pay ${new Intl.NumberFormat('en-US', {
             style: 'currency',
-            currency: 'USD'
+            currency: import.meta.env.VITE_CURRENCY || 'USD'
           }).format(amount)}`
         )}
       </button>

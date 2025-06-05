@@ -12,14 +12,10 @@ import Dashboard from './pages/Dashboard'
 import Categories from './pages/Categories'
 import Preorders from './pages/Preorders'
 import Settings from './pages/Settings'
-import { loadStripe } from '@stripe/stripe-js';
-import { Elements } from '@stripe/react-stripe-js';
 
-// Initialize Stripe 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 export const backendUrl = import.meta.env.VITE_BACKEND_URL
-export const currency = '$'
+export const currency = import.meta.env.VITE_CURRENCY_SYMBOL || '€'
 
 const App = () => {
 
@@ -30,7 +26,6 @@ const App = () => {
   },[token])
 
   return (
-    <Elements stripe={stripePromise}>
       <div className='bg-gray-50 min-h-screen'>
       <Toaster richColors closeButton/>
       {
@@ -58,7 +53,6 @@ const App = () => {
           )
       }
     </div>
-    </Elements>
     
   )
 }
