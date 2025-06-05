@@ -55,7 +55,7 @@ const placeOrder = async (req, res) => {
 //Placing orders using Stripe method
 const placeOrderStripe = async  (req,res) => {
     try {
-        const { userId, items, amount, address } = req.body;
+        const { userId, items, amount, address, payment } = req.body;
         const { origin } = req.headers;
         const orderData = {
             userId,
@@ -63,7 +63,7 @@ const placeOrderStripe = async  (req,res) => {
             address,
             amount,
             paymentMethod: "Stripe",
-            payment: false,
+            payment,
             date: Date.now()
         }
 
@@ -216,4 +216,83 @@ const updateStatus = async  (req,res) => {
     }
 }
 
-export { placeOrder, placeOrderStripe, allOrders, userOrders, updateStatus, verifyStripe, validatePayment }
+// Create Payment Intent
+const createPaymentIntent = async (req, res) => {
+  try {
+    const { amount, address, orderData } = req.body;
+
+    console.log('Creating payment intent with amount:', amount, 'and order data:', address);
+
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round(amount * 100),
+      currency: 'usd',
+      metadata: {
+        customerEmail: address.email,
+      }
+    });
+
+    res.json({
+      clientSecret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id
+    });
+  } catch (error) {
+    console.error('Payment intent creation error:', error);
+    res.status(500).json({
+      error: error.message
+    });
+  }
+};
+
+// Handle successful payment and create order
+const createOrder = async (req, res) => {
+  try {
+    const { address, items, amount, paymentIntentId } = req.body;
+    const userId = req.user._id;
+
+    // Verify payment intent status
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    
+    if (paymentIntent.status !== 'succeeded') {
+      throw new Error('Payment has not been completed');
+    }
+
+    // Create order
+    const order = new orderModel({
+      userId,
+      items,
+      address,
+      amount,
+      paymentMethod: 'stripe',
+      paymentId: paymentIntentId,
+      payment: true,
+      status: 'processing',
+      date: new Date()
+    });
+
+    await order.save();
+
+    // Clear user's cart
+    await userModel.findByIdAndUpdate(
+      userId,
+      { cartData: {} },
+      { new: true }
+    );
+
+    // Send email notification
+    await sendOrderNotification(order);
+
+    res.json({
+      success: true,
+      message: 'Order created successfully',
+      order
+    });
+  } catch (error) {
+    console.error('Create order error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to create order'
+    });
+  }
+};
+
+export { placeOrder, placeOrderStripe, allOrders, userOrders, updateStatus, verifyStripe, validatePayment, createPaymentIntent, createOrder }

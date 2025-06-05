@@ -124,3 +124,66 @@ export const createPreorder = async (req, res) => {
     })
   }
 }
+
+export const deletePreorder = async (req, res) => {
+  try {
+    const { id } = req.params
+    
+    // Use proper write concern configuration
+    const preorder = await PreOrder.findById(
+      {_id: id},
+      { writeConcern: { w: 1, wtimeout: 5000 } }
+    )
+
+    // Check if preorder exists
+    if (!preorder) {
+      return res.status(404).json({
+        success: false,
+        message: 'Preorder not found'
+      })
+    }
+
+    // Check if preorder can be deleted (not 'ready' or 'cancelled')
+    if (['ready', 'cancelled'].includes(preorder.status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot delete preorder in current status'
+      })
+    }
+
+    // Delete the preorder with proper write concern
+    await PreOrder.findByIdAndDelete(
+      {_id: id},
+      { writeConcern: { w: 1, wtimeout: 5000 } }
+    )
+
+    res.json({
+      success: true,
+      message: 'Preorder deleted successfully'
+    })
+
+  } catch (error) {
+    console.error('Delete preorder error:', error)
+    res.status(500).json({
+      success: false,
+      message: error.message
+    })
+  }
+}
+
+
+
+export const userPreorders = async (req, res) => {
+
+   try {
+          const { userId } = req.body
+    
+          const preorders = await PreOrder.find({ user: userId })
+
+          res.json({success: true, preorders})
+  
+      } catch (error) {
+          console.log(error)
+          res.json({success: false, message: error.message})
+      }
+}

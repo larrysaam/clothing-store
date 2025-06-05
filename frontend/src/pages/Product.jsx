@@ -33,6 +33,7 @@ const Product = () => {
     phone: ''
   })
   const [addressDialogOpen, setAddressDialogOpen] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const foundProduct = products.find((item) => item._id == productId);
 
@@ -65,6 +66,8 @@ const Product = () => {
         return
       }
 
+      setIsSubmitting(true)
+
       const preorderItem = {
         productId: productData._id,
         name: productData.name,
@@ -82,8 +85,6 @@ const Product = () => {
         headers: { token }
       })
 
-      console.log(response.data)
-
       if (response.data.success) {
         toast.success('Preorder placed successfully')
         setHasPreordered(true)
@@ -99,7 +100,28 @@ const Product = () => {
       } else {
         toast.error('Failed to place preorder')
       }
+    } finally {
+      setIsSubmitting(false)
     }
+  }
+
+  const [selectedSize, setSelectedSize] = useState(null)
+  const availableQuantity = selectedSize 
+    ? productData?.sizes.find(s => s.size === selectedSize)?.quantity || 0
+    : 0
+
+  const handleAddToCart = () => {
+    if (!token) {
+      navigate('/login')
+      return
+    }
+    if (!selectedSize) {
+      toast.error('Please select a size')
+      return
+    }
+    
+    addToCart(productData?._id, selectedSize)
+    toast.success('Product added to cart successfully!')
   }
 
   if (isLoading) {
@@ -117,18 +139,29 @@ const Product = () => {
         <div className='flex gap-12 sm:gap-20 flex-col sm:flex-row'>
           {/* ----------- Product Images ----------- */}
           <div className='flex-1 flex flex-col-reverse gap-3 sm:flex-row'>
-            <div className='flex sm:flex-col overflow-x-auto sm:overflow-y-scroll 
-                  justify-between sm:justify-normal w-full sm:w-[30%]'>
-              {
-                productData?.image.map((item, index) => {
-                  return <img src={item} alt='image' key={index} onClick={() => setImage(item)}
-                    className='w-[24%] sm:w-full sm:mb-3 flex-shrink-0 cursor-pointer rounded-md ' />
-                })
-              }
+            {/* Side thumbnails */}
+            <div className='flex sm:flex-col overflow-x-auto sm:overflow-y-auto 
+                justify-between sm:justify-start w-full sm:w-[15%] sm:max-h-[500px]'>
+              {productData?.image.map((item, index) => (
+                <img 
+                  src={item} 
+                  alt={`product-${index + 1}`} 
+                  key={index} 
+                  onClick={() => setImage(item)}
+                  className={`w-[24%] sm:w-full sm:h-[80px] object-cover mb-2 flex-shrink-0 
+                    cursor-pointer rounded-md transition-opacity duration-200 
+                    hover:opacity-80 ${image === item ? 'border-2 border-black' : ''}`}
+                />
+              ))}
             </div>
 
-            <div className='w-full sm:w-[80%]'>
-              <img src={image} className='w-full h-auto rounded-md' alt='main-image' />
+            {/* Main image */}
+            <div className='w-full sm:w-[85%] sm:h-[500px]'>
+              <img 
+                src={image} 
+                className='w-full h-full object-cover rounded-md' 
+                alt='main-product-image' 
+              />
             </div>
           </div>
           {/* ----------- Product Info ----------- */}
@@ -139,14 +172,26 @@ const Product = () => {
             <div className='flex flex-col gap-4 my-8'>
               <p>Select size:</p>
               <ToggleGroup className='flex justify-start gap-2' type="single">
-                {productData?.sizes.map((item, index) => {
-                  return   <ToggleGroupItem value="a"
-                  className={`border rounded-none text-base font-normal py-5 px-4 bg-gray-100 ${item == size ? 'border-black border-[1.5px]' : ''}`}
-                  key={index} onClick={() => setSize(item)}>
-                    {item}
+                {productData?.sizes.map((sizeObj) => (
+                  <ToggleGroupItem
+                    key={sizeObj.size}
+                    value={sizeObj.size}
+                    disabled={sizeObj.quantity === 0}
+                    className={`transition-all duration-200
+                      ${sizeObj.quantity === 0 ? 'opacity-50 cursor-not-allowed' : ''}
+                      ${size === sizeObj.size ? 'bg-black text-white' : ''}`}
+                    onClick={() => setSelectedSize(sizeObj.size)}
+                  >
+                    {sizeObj.size}
+                    <span className="text-xs ml-1">({sizeObj.quantity})</span>
                   </ToggleGroupItem>
-                })}
+                ))}
               </ToggleGroup>
+              {selectedSize && availableQuantity > 0 && (
+                <p className="text-sm text-gray-600">
+                  {availableQuantity} items available
+                </p>
+              )}
             </div>
             {/* ----------- Replace the existing buttons section ----------- */}
             {productData?.preorder ? (
@@ -160,9 +205,9 @@ const Product = () => {
               ) : (
                 <button 
                   onClick={handlePreorder}
-                  disabled={!size}
+                  disabled={!selectedSize}
                   className={`bg-blue-600 text-white px-8 py-3 text-sm rounded-full ${
-                    !size ? 'opacity-50 cursor-not-allowed' : 'active:bg-blue-700'
+                    !selectedSize ? 'opacity-50 cursor-not-allowed' : 'active:bg-blue-700'
                   }`}
                 >
                   PREORDER NOW
@@ -170,19 +215,15 @@ const Product = () => {
               )
             ) : (
               <button 
-                onClick={() => {
-                  if (token) {
-                    addToCart(productData?._id, size)
-                  } else {
-                    navigate('/login')
-                  }
-                }}
-                disabled={!size}
+                onClick={handleAddToCart}
+                disabled={!selectedSize || availableQuantity === 0}
                 className={`bg-black text-white px-8 py-3 text-sm rounded-full ${
-                  !size ? 'opacity-50 cursor-not-allowed' : 'active:bg-gray-700'
+                  !selectedSize || availableQuantity === 0 
+                    ? 'opacity-50 cursor-not-allowed' 
+                    : 'active:bg-gray-700'
                 }`}
               >
-                ADD TO CART
+                {availableQuantity === 0 ? 'OUT OF STOCK' : 'ADD TO CART'}
               </button>
             )}
             <hr className='mt-8 sm:w-4/5' />
@@ -309,15 +350,32 @@ const Product = () => {
           <div className="flex justify-end gap-4">
             <button
               onClick={() => setAddressDialogOpen(false)}
-              className="px-4 py-2 text-sm border rounded-full hover:bg-gray-100"
+              disabled={isSubmitting}
+              className={`px-4 py-2 text-sm border rounded-full transition-colors
+                ${isSubmitting 
+                  ? 'opacity-50 cursor-not-allowed' 
+                  : 'hover:bg-gray-100'
+                }`}
             >
               Cancel
             </button>
             <button
               onClick={handlePreorderSubmit}
-              className="px-4 py-2 text-sm bg-blue-600 text-white rounded-full hover:bg-blue-700"
+              disabled={isSubmitting}
+              className={`px-4 py-2 text-sm bg-blue-600 text-white rounded-full transition-colors
+                ${isSubmitting 
+                  ? 'opacity-50 cursor-not-allowed' 
+                  : 'hover:bg-blue-700'
+                }`}
             >
-              Confirm Preorder
+              {isSubmitting ? (
+                <span className="flex items-center gap-2">
+                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                  Processing...
+                </span>
+              ) : (
+                'Confirm Preorder'
+              )}
             </button>
           </div>
         </DialogContent>

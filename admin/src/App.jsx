@@ -12,6 +12,11 @@ import Dashboard from './pages/Dashboard'
 import Categories from './pages/Categories'
 import Preorders from './pages/Preorders'
 import Settings from './pages/Settings'
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements } from '@stripe/react-stripe-js';
+
+// Initialize Stripe 
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 export const backendUrl = import.meta.env.VITE_BACKEND_URL
 export const currency = '$'
@@ -25,7 +30,8 @@ const App = () => {
   },[token])
 
   return (
-    <div className='bg-gray-50 min-h-screen'>
+    <Elements stripe={stripePromise}>
+      <div className='bg-gray-50 min-h-screen'>
       <Toaster richColors closeButton/>
       {
         token === '' ?
@@ -52,6 +58,8 @@ const App = () => {
           )
       }
     </div>
+    </Elements>
+    
   )
 }
 

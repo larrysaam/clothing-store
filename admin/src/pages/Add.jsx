@@ -32,7 +32,9 @@ const KIDS_SHOE_SIZES = Array.from({ length: 13 }, (_, i) => (i + 26).toString()
 const Add = ({token}) => {
   const pondRef = useRef()
   const [availableSubcategories, setAvailableSubcategories] = useState([])
-
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  
+  // Update validation schema
   const validationSchema = z.object({
     images: z.any()
     .refine(() => images.length > 0, {
@@ -46,7 +48,10 @@ const Add = ({token}) => {
     price: z.coerce.number().positive({message : "Please enter product price"}),
     category: z.string().min(1, {message: "Category is required"}),
     subcategory: z.string().min(1, {message: "Subcategory is required"}),
-    sizes: z.array(z.string()).nonempty({message: "Choose at least 1 size"}),
+    sizes: z.array(z.object({
+      size: z.string(),
+      quantity: z.number().min(0, "Quantity cannot be negative")
+    })).nonempty({ message: "Choose at least 1 size with quantity" }),
     bestseller: z.boolean(),
     preorder: z.boolean()
   })
@@ -67,6 +72,7 @@ const Add = ({token}) => {
   })
  
   async function onSubmit(values) {
+    setIsSubmitting(true)
     try {
       const formData = new FormData()
 
@@ -94,15 +100,19 @@ const Add = ({token}) => {
       const response = await axios.post(backendUrl + '/api/product/add', formData,
         {headers: {token}}
       );
+      
       if (response.data.success) {
-        toast.success(response.data.message)
+        toast.success('Product added successfully!')
+        reset() // Reset form
+        pondRef.current.removeFiles() // Clear images
       } else {
-        toast.error(response.data.message)
-        console(response.data.message)
+        toast.error(response.data.message || 'Failed to add product')
       }
     } catch (error) {
-      console.log(error)
-      toast.error(error.message)
+      console.error(error)
+      toast.error(error.response?.data?.message || 'Failed to add product')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -312,30 +322,45 @@ const Add = ({token}) => {
       </div>
 
       <div className='w-full'>
-        <p className='mb-2'>Product Sizes</p>
+        <p className='mb-2'>Product Sizes and Quantities</p>
         <Controller
           name="sizes"
           control={control}
-          render={({ field, ref }) => (
-            <ToggleGroup 
-  type="multiple" 
-  {...field} 
-  ref={ref} 
-  error={errors.sizes?.message} 
-  className='gap-1 flex flex-wrap max-w-[500px]'
-  value={field.value || ""} 
-  onValueChange={(value) => field.onChange(value)}
->
-  {getSizeOptions().map((size) => (
-    <ToggleGroupItem 
-      key={size}
-      className='border rounded-md data-[state=on]:bg-gray-100 data-[state=on]:font-medium data-[state=on]:border-black'
-      value={size}
-    >
-      {size}
-    </ToggleGroupItem>
-  ))}
-</ToggleGroup>
+          render={({ field }) => (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 max-w-[500px]">
+              {getSizeOptions().map((size) => (
+                <div key={size} className="flex flex-col gap-2 p-3 border rounded-md">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">{size}</span>
+                    <Checkbox 
+                      checked={field.value.some(s => s.size === size)}
+                      onCheckedChange={(checked) => {
+                        const newSizes = checked 
+                          ? [...field.value, { size, quantity: 0 }]
+                          : field.value.filter(s => s.size !== size);
+                        field.onChange(newSizes);
+                      }}
+                    />
+                  </div>
+                  {field.value.some(s => s.size === size) && (
+                    <Input
+                      type="number"
+                      min="0"
+                      placeholder="Qty"
+                      className="w-full"
+                      value={field.value.find(s => s.size === size)?.quantity || 0}
+                      onChange={(e) => {
+                        const quantity = parseInt(e.target.value) || 0;
+                        const newSizes = field.value.map(s => 
+                          s.size === size ? { ...s, quantity } : s
+                        );
+                        field.onChange(newSizes);
+                      }}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
           )}
         />
         {errors.sizes && <p className="text-red-500 text-sm">{errors.sizes.message}</p>}
@@ -382,9 +407,40 @@ const Add = ({token}) => {
   />
 </div>
 
-      <button type='submit' className='group text-sm mt-4 cursor-pointer bg-gray-700 hover:bg-gray-900 text-white pl-5 pr-4 py-2 rounded-lg flex items-center'>
-        <p>Add product</p>
-        <svg className='transistion-all duration-200 group-hover:rotate-90 ml-2 text-white' width="30" height="30" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="#ffffff" strokeWidth="1.5"/><path stroke="#ffffff" strokeLinecap="round" strokeWidth="1.5" d="M15 12h-3m0 0H9m3 0V9m0 3v3"/></svg>
+      <button 
+        type='submit' 
+        disabled={isSubmitting}
+        className={`group text-sm mt-4 cursor-pointer pl-5 pr-4 py-2 rounded-lg flex items-center
+          ${isSubmitting 
+            ? 'bg-gray-400 cursor-not-allowed' 
+            : 'bg-gray-700 hover:bg-gray-900'} 
+          text-white`}
+      >
+        {isSubmitting ? (
+          <span className="flex items-center gap-2">
+            <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+            Adding Product...
+          </span>
+        ) : (
+          <>
+            <p>Add product</p>
+            <svg 
+              className='transition-all duration-200 group-hover:rotate-90 ml-2 text-white' 
+              width="30" 
+              height="30" 
+              fill="none" 
+              viewBox="0 0 24 24"
+            >
+              <circle cx="12" cy="12" r="10" stroke="#ffffff" strokeWidth="1.5"/>
+              <path 
+                stroke="#ffffff" 
+                strokeLinecap="round" 
+                strokeWidth="1.5" 
+                d="M15 12h-3m0 0H9m3 0V9m0 3v3"
+              />
+            </svg>
+          </>
+        )}
       </button>
     </form>
   )

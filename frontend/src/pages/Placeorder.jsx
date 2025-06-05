@@ -3,15 +3,19 @@ import Title from '@/components/Title'
 import CartTotal from '@/features/shared/CartTotal'
 import { assets } from '@/assets/assets'
 import { ShopContext } from '@/context/ShopContext'
-import { toast } from "sonner"
+import { toast } from 'react-toastify';
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { Input } from "@/components/ui/input"
 import { useMutation } from "@tanstack/react-query"
 import axios from "axios"
+import { Elements } from '@stripe/react-stripe-js';
+import { loadStripe } from '@stripe/stripe-js';
+import StripeElement from '@/components/payment/StripeElement';
 
-
+// Initialize Stripe
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 const Placeorder = () => {
 
@@ -28,6 +32,7 @@ const Placeorder = () => {
   })
 
   const [method, setMethod] = useState('cod')
+  const [clientSecret, setClientSecret] = useState("");
   const { navigate, backendUrl, token, cartItems,
     resetCart, getCartAmount, deliveryFee, products } = useContext(ShopContext)
 
@@ -35,6 +40,7 @@ const Placeorder = () => {
     control,
     handleSubmit,
     formState: { errors },
+    getValues
   } = useForm({
     resolver: zodResolver(orderSchema),
     defaultValues: {
@@ -73,6 +79,7 @@ const Placeorder = () => {
     mutationFn: (orderData) =>
       axios.post(`${backendUrl}/api/order/stripe`, orderData, { headers: { token } }),
     onSuccess: (res) => {
+      console.log('Stripe order placed response : ', res.data)
       if (res.data.success) {
         toast.success('Redirecting to payment...')
         window.location.replace(res.data.session_url)
@@ -88,19 +95,43 @@ const Placeorder = () => {
   // Check if any mutation is loading
   const isLoading = placeOrderMutation.isPending || stripeOrderMutation.isPending
 
+  // Create payment intent for Stripe
+  const createPaymentIntent = async (orderData) => {
+    try {
+      const response = await axios.post(
+        `${backendUrl}/api/order/create-payment-intent`, 
+        orderData,
+        { headers: { token } }
+      );
+
+      console.log('Payment intent response:', response.data);
+      
+      if (response.data.clientSecret) {
+        setClientSecret(response.data.clientSecret);
+      }
+    } catch (error) {
+      toast.error('Failed to initialize payment');
+    }
+  };
+
+  const handleOrderComplete = () => {
+    resetCart();
+    navigate('/orders');
+  };
+
   // Collect data from cart + form and submit
   const onSubmitHandler = async (data) => {
     try {
-      let orderItems = []
+      let orderItems = [];
 
       for (const items in cartItems) {
         for (const item in cartItems[items]) {
           if (cartItems[items][item] > 0) {
-            const itemInfo = structuredClone(products.find(product => product._id === items))
+            const itemInfo = structuredClone(products.find(product => product._id === items));
             if (itemInfo) {
-              itemInfo.size = item
-              itemInfo.quantity = cartItems[items][item]
-              orderItems.push(itemInfo)
+              itemInfo.size = item;
+              itemInfo.quantity = cartItems[items][item];
+              orderItems.push(itemInfo);
             }
           }
         }
@@ -109,24 +140,21 @@ const Placeorder = () => {
       const orderData = {
         address: data,
         items: orderItems,
-        amount: getCartAmount() + deliveryFee
-      }
+        amount: getCartAmount() + deliveryFee,
+        paymentMethod: method,
+        payment: true,
+      };
 
-      switch (method) {
-        case 'cod':
-          placeOrderMutation.mutate(orderData)
-          break
-        case 'stripe':
-          stripeOrderMutation.mutate(orderData)
-          break
-        default:
-          break
+      if (method === 'stripe') {
+        console.log('Creating payment intent with order data:', orderData);
+        await createPaymentIntent(orderData);
+      } else {
+        placeOrderMutation.mutate(orderData);
       }
-
     } catch (error) {
-      toast.error(error.message)
+      toast.error(error.message);
     }
-  }
+  };
 
   return (
     <form onSubmit={handleSubmit(onSubmitHandler)} className='flex flex-col sm:flex-row justify-between lg:justify-evenly gap-4 pt-5 sm:pt-14 min-h-[70vh] border-t animate-fade animate-duration-500'>
@@ -212,17 +240,37 @@ const Placeorder = () => {
           <Title text1='PAYMENT' text2='METHOD' />
 
           <div className='flex gap-3 flex-col lg:flex-row'>
-            <div onClick={() => {
-              setMethod('stripe')
-              toast.info('For mock payment please enter: any valid date and card number 4242 4242 4242 4242')
-            }
-            }
-              className={`flex items-center gap-3 border py-2 px-3 cursor-pointer 
-            transistion-all duration-100 ${method === 'stripe' ? 'border-black' : ''}`}>
-              <p className={`min-w-3.5 h-3.5 border rounded-full transistion-all duration-100 ${method === 'stripe' ? 'bg-green-400 border' : ''}`}></p>
-              <p className='text-gray-700 text-sm font-medium mx-4'>Online payment</p>
-              <img alt='' src={assets.stripe} className='h-5 mx-4' />
+            <div 
+              onClick={() => setMethod('stripe')}
+              className={`flex-1 border p-4 cursor-pointer ${
+                method === 'stripe' ? 'border-black' : ''
+              }`}
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className={`w-3.5 h-3.5 border rounded-full ${
+                  method === 'stripe' ? 'bg-green-400' : ''
+                }`} />
+                <p className='text-gray-700 text-sm font-medium'>Online payment</p>
+                <img alt='' src={assets.stripe} className='h-5' />
+              </div>
+              
+              {method === 'stripe' && clientSecret && (
+                <Elements 
+                  stripe={stripePromise} 
+                  options={{
+                    clientSecret,
+                    appearance: { theme: 'stripe' }
+                  }}
+                >
+                  <StripeElement
+                    amount={getCartAmount() + deliveryFee}
+                    orderData={orderData} // Pass current form data
+                    onOrderComplete={handleOrderComplete}
+                  />
+                </Elements>
+              )}
             </div>
+
             <div onClick={() => setMethod('cod')}
               className={`flex items-center gap-3 border py-2 px-3 cursor-pointer 
              transistion-all duration-100 ${method === 'cod' ? 'border-black' : ''}`}>

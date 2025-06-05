@@ -1,15 +1,24 @@
-import React, { useContext } from 'react'
+import React, { useContext, useState } from 'react'
 import { ShopContext } from '@/context/ShopContext'
 import Title from '@/components/Title'
 import { toast } from "sonner"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useMutation } from "@tanstack/react-query"
 import axios from "axios"
+import { BsTrash } from 'react-icons/bs'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 const Orders = () => {
   const { currency, backendUrl, token } = useContext(ShopContext)
+  const [filter, setFilter] = useState('orders') // Changed default to 'orders' from 'all'
 
   // Fetch orders using React Query
-  const { data: orderData = [], isLoading, isError, refetch, isRefetching } = useQuery({
+  const { data: orders = [], isLoading: ordersLoading, refetch: refetchOrders } = useQuery({
     queryKey: ['userOrders', token],
     queryFn: async () => {
       if (!token) return []
@@ -21,85 +30,162 @@ const Orders = () => {
             status: order.status,
             payment: order.payment,
             paymentMethod: order.paymentMethod,
-            date: order.date
+            date: order.date,
+            type: 'order'
           }))
-        ).reverse()
+        )
         return orders
-      } else {
-        toast.error(response.data.message)
-        return []
       }
+      return []
     },
-    enabled: !!token, // Fetch only if token exists
-    staleTime: 1000 * 60 * 5, // Cache data for 5 minutes
+    enabled: !!token
   })
+
+  // Fetch preorders using React Query
+  const { data: preorders = [], isLoading: preordersLoading, refetch: refetchPreorders } = useQuery({
+    queryKey: ['userPreorders', token],
+    queryFn: async () => {
+      if (!token) return []
+       const response = await axios.post(
+          `${backendUrl}/api/preorder/userpreorders`,{},
+          { headers: { token } }
+        )
+
+      console.log('Preorders response:', response.data)
+      if (response.data.success) {
+        return response.data.preorders.map(preorder => ({
+          ...preorder,
+          type: 'preorder'
+        }))
+      }
+      return []
+    },
+    enabled: !!token
+  })
+
+  // Update delete preorder mutation
+  const deletePreorderMutation = useMutation({
+    mutationFn: async (preorderId) => {
+      const response = await axios.delete(`${backendUrl}/api/preorder/${preorderId}`, {
+        headers: { token }
+      })
+      return response.data
+    },
+    onSuccess: () => {
+      toast.success('Preorder cancelled successfully')
+      // Refetch both orders and preorders
+      refetchOrders()
+      refetchPreorders()
+    },
+    onError: () => {
+      toast.error('Failed to cancel preorder')
+    }
+  })
+
+  const handleDeletePreorder = (preorderId, status) => {
+    if (['cancelled', 'ready'].includes(status)) {
+      toast.error("Can't cancel this preorder")
+      return
+    }
+    
+    if (window.confirm('Are you sure you want to cancel this preorder?')) {
+      deletePreorderMutation.mutate(preorderId)
+    }
+  }
+
+  const isLoading = ordersLoading || preordersLoading
 
   if (isLoading) {
     return <div className='px-4 sm:px-14 my-10 gap-6 flex justify-center items-center'>
-        <div className="w-6 h-6 border-4 border-t-gray-800 border-gray-300 rounded-full animate-spin"></div>
-        <p className="text-center text-gray-600">Loading your orders...</p>
+      <div className="w-6 h-6 border-4 border-t-gray-800 border-gray-300 rounded-full animate-spin"></div>
+      <p className="text-center text-gray-600">Loading your orders...</p>
     </div>
   }
 
-  if (isError) {
-    return <p className="text-center text-red-500">Failed to load orders. Please try again.</p>
-  }
+  // Filter orders based on selection (removed 'all' case)
+  const filteredOrders = filter === 'orders' ? orders : preorders
 
   return (
     <div className='px-4 sm:px-14 border-t pt-16 animate-fade animate-duration-500'>
-      <div className='text-2xl'>
-        <Title text1='MY' text2='ORDERS' />
+      <div className='flex justify-between items-center mb-8'>
+        <div className='text-2xl'>
+          <Title text1='MY' text2='ORDERS' />
+        </div>
+        
+        <Select value={filter} onValueChange={setFilter}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Filter orders" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="orders">Regular Orders</SelectItem>
+            <SelectItem value="preorders">Pre-orders</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
-      {/* No Orders Found */}
-      {orderData.length === 0 ? (
+      {filteredOrders.length === 0 ? (
         <p className="text-center text-gray-500 mt-6 text-lg">
-          You haven't placed any orders yet. <br /> 
+          {filter === 'orders'
+            ? "You don't have any regular orders."
+            : "You don't have any pre-orders."
+          } <br /> 
           <span className="text-blue-600 cursor-pointer hover:underline" onClick={() => window.location.href = '/'}>
             Start shopping now!
           </span>
         </p>
       ) : (
-        orderData.map((item, index) => (
+        filteredOrders.map((item, index) => (
           <div key={index} className='py-4 border-y text-gray-700 flex flex-col md:flex-row
           md:items-center md:justify-between gap-4'>
             <div className='flex items-center gap-6 text-sm'>
-              <img src={item.image[0]} alt="" className='w-16 sm:w-20' />
+              <img src={(filter === 'preorders')? item.items[0].image : item.image?.[0]} alt="" className='w-16 sm:w-20' />
               <div>
-                <p className='sm:text-base font-medium'>{item.name}</p>
+                <div className="flex items-center gap-2">
+                  <p className='sm:text-base font-medium'>{item.name}</p>
+                  {item.type === 'preorder' && (
+                    <span className="bg-blue-100 text-blue-800 text-xs px-2.5 py-0.5 rounded">Pre-order</span>
+                  )}
+                </div>
                 <div className='flex items-center gap-3 mt-1 text-base text-gray-700'>
-                  <p>{currency}{item.price}</p>
-                  <p>Quantity: {item.quantity}</p>
-                  <p>Size: {item.size}</p>
+                  <p>{currency}{(filter === 'preorders')? item.items[0].price : item.price}</p>
+                  <p>Quantity: {(filter === 'preorders')? item.items[0].quantity : item.quantity}</p>
+                  <p>Size: {(filter === 'preorders')? item.items[0].size : item.size}</p>
                 </div>
                 <p>{`Date: `} 
-                  <span className='text-gray-400'>{new Date(item.date).toLocaleString()}</span>
+                  <span className='text-gray-400'>{new Date((filter === 'preorders')? item.createdAt : item.date).toLocaleString()}</span>
                 </p>
                 <p>{`Payment: `} 
                   <span className='text-gray-400'>{item.paymentMethod}</span>
                 </p>
               </div>
             </div>
-            <div className='md:w-1/2 flex justify-between'>
+            <div className='md:w-1/2 flex justify-between items-center'>
               <div className='flex items-center gap-2'>
-                <p className='min-w-2 h-2 rounded-full bg-green-500'></p>
+                <p className={`min-w-2 h-2 rounded-full ${
+                  item.status === 'cancelled' ? 'bg-red-500' :
+                  item.status === 'ready' ? 'bg-green-500' : 'bg-yellow-500'
+                }`}></p>
                 <p className='text-sm md:text-base'>{item.status}</p>
               </div>
-              <button 
-                onClick={refetch}
-                className={`border px-4 py-2 text-sm font-medium rounded-lg transition-all duration-300 flex items-center gap-2
-                  ${isRefetching ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : ''}`}
-                disabled={isRefetching}
-              >
-                {isRefetching ? (
-                  <>
-                    <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
-                    Refreshing...
-                  </>
-                ) : (
-                  "Track Order"
+              <div className="flex items-center gap-3">
+                {item.type === 'preorder' && !['cancelled', 'ready'].includes(item.status) && (
+                  <button 
+                    onClick={() => handleDeletePreorder(item._id, item.status)}
+                    className="text-red-500 hover:text-red-700 p-2 rounded-full hover:bg-red-50 transition-colors"
+                    disabled={deletePreorderMutation.isPending}
+                  >
+                    <BsTrash size={16} />
+                  </button>
                 )}
-              </button>
+                <button 
+                  onClick={refetchOrders}
+                  className={`border px-4 py-2 text-sm font-medium rounded-lg transition-all duration-300 flex items-center gap-2
+                    ${deletePreorderMutation.isPending ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : ''}`}
+                  disabled={deletePreorderMutation.isPending}
+                >
+                  Track Order
+                </button>
+              </div>
             </div>
           </div>
         ))

@@ -3,65 +3,86 @@ import productModel from '../models/productModel.js'
 
 
 // function for add products
-const addProduct = async (req,res) => {
-    try {
-        const {
-            name, 
-            description,
-            price,
-            category,
-            subcategory,
-            sizes,
-            bestseller,
-            preorder, // Add preorder to destructuring
-        } = req.body;
+const addProduct = async (req, res) => {
+  try {
+    const { name, description, price, category, subcategory, sizes, bestseller, preorder } = req.body
 
-        const image1 = req.files.image1 && req.files.image1[0]
-        const image2 = req.files.image2 && req.files.image2[0]
-        const image3 = req.files.image3 && req.files.image3[0]
-        const image4 = req.files.image4 && req.files.image4[0]
-
-        const images = [image1, image2, image3, image4].filter((item) => item !== undefined)
-        const imagesUrl = await Promise.all(
-            images.map( async (item) => {
-                let result = await cloudinary.uploader.upload(item.path, {resource_type:'image'})
-                return result.secure_url
-            })
-        )
-        
-        const productData = { 
-            name, 
-            description,
-            price: Number(price), 
-            category, 
-            subcategory, 
-            sizes: JSON.parse(sizes), 
-            bestseller: bestseller === "true" ? true : false,
-            preorder: preorder === "true" ? true : false, // Add preorder field
-            image: imagesUrl,
-            date: Date.now()
-        }
-
-        const product = new productModel(productData)
-        await product.save({
-            writeConcern: {
-                w: 1,
-                wtimeout: 5000
-            }
-        })
-
-        res.json({
-            success: true,
-            message: "Product Added"
-        })
-
-    } catch (error) {
-        console.error('Add product error:', error) // Better error logging
-        res.status(500).json({
-            success: false, 
-            message: error.message
-        })
+    // Check if req.files exists
+    if (!req.files) {
+      return res.status(400).json({
+        success: false,
+        message: 'No images uploaded'
+      })
     }
+
+    // Log the files object to debug
+    console.log('Uploaded files:', req.files)
+
+    // Validate sizes and quantities
+    const formattedSizes = JSON.parse(sizes).map(size => ({
+      size: size.size,
+      quantity: parseInt(size.quantity)
+    }))
+
+    // Extract images from request files
+    const image1 = req.files?.image1?.[0]
+    const image2 = req.files?.image2?.[0]
+    const image3 = req.files?.image3?.[0]
+    const image4 = req.files?.image4?.[0]
+
+    // Filter out undefined images and upload to cloudinary
+    const images = [image1, image2, image3, image4].filter(Boolean)
+    
+    if (images.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'At least one image is required'
+      })
+    }
+
+    // Upload images to cloudinary
+    const imagesUrl = await Promise.all(
+      images.map(async (item) => {
+        try {
+          const result = await cloudinary.uploader.upload(item.path, {
+            resource_type: 'image'
+          })
+          return result.secure_url
+        } catch (error) {
+          console.error('Cloudinary upload error:', error)
+          throw new Error('Failed to upload image')
+        }
+      })
+    )
+
+    // Create new product
+    const newProduct = new productModel({
+      name,
+      description,
+      price,
+      category,
+      subcategory,
+      sizes: formattedSizes,
+      bestseller: bestseller === 'true',
+      preorder: preorder === 'true',
+      image: imagesUrl,
+      date: new Date()
+    })
+
+    // Save product
+    await newProduct.save({ writeConcern: { w: 1, wtimeout: 5000 }})
+
+    res.json({
+      success: true,
+      message: 'Product added successfully'
+    })
+  } catch (error) {
+    console.error('Add product error:', error)
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to add product'
+    })
+  }
 }
 
 // function for list products
@@ -86,7 +107,11 @@ const listProducts = async (req,res) => {
 const removeProduct = async (req,res) => {
     try {
         
-        const remove = await productModel.findByIdAndDelete(req.body.id)
+        const remove = await productModel.findByIdAndDelete({_id : req.body.id},
+          { writeConcern: { 
+            w: 1,
+            wtimeout: 5000 
+          }})
         if (!remove) {
           return res.json({
             success: false,
@@ -140,7 +165,7 @@ const updateProduct = async (req, res) => {
     }
 
     // Find and update the product
-    const updatedProduct = await Product.findByIdAndUpdate(
+    const updatedProduct = await productModel.findByIdAndUpdate(
       id,
       {
         name,
@@ -172,4 +197,41 @@ const updateProduct = async (req, res) => {
   }
 }
 
-export { addProduct, listProducts, removeProduct, singleProduct, updateProduct }
+// Add quantity update endpoint
+const updateQuantity = async (req, res) => {
+  try {
+    const { productId, size, quantity } = req.body
+
+    const product = await productModel.findById(productId)
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      })
+    }
+
+    const sizeIndex = product.sizes.findIndex(s => s.size === size)
+    if (sizeIndex === -1) {
+      return res.status(400).json({
+        success: false,
+        message: 'Size not found'
+      })
+    }
+
+    product.sizes[sizeIndex].quantity = quantity
+    await product.save()
+
+    res.json({
+      success: true,
+      message: 'Quantity updated successfully'
+    })
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({
+      success: false,
+      message: error.message
+    })
+  }
+}
+
+export { addProduct, listProducts, removeProduct, singleProduct, updateProduct, updateQuantity}

@@ -2,9 +2,10 @@ import React, { useContext, useEffect, useState } from 'react'
 import { ShopContext } from '@/context/ShopContext'
 import Title from '@/components/Title'
 import ProductItem from '@/features/shared/ProductItem'
+import { useTranslation } from 'react-i18next';
 
 const Bestseller = () => {
-
+    const { t } = useTranslation();
     const { products } = useContext(ShopContext)
     const [ bestSeller, setBestSeller ] = useState([])
 
@@ -17,10 +18,7 @@ const Bestseller = () => {
   return (
     <div className='my-10 mx-2 sm:mx-10 lg:mx-16 '>
         <div className='text-center text-3xl py-8'>
-            <Title text1='BEST' text2='SELLERS'/>
-            <p className='w-3/4 m-auto text-xs sm:text-sm md:text-base text-gray-600'>
-                Lorem ipsum dolor sit amet consectetur adipisicing elit. Dignissimos dolorum quidem adipisci.
-            </p>
+            <Title text1={t('bestsellers')} />
         </div>
 
         <div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 gap-y-6'>

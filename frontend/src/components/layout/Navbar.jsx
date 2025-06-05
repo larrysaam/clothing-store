@@ -5,14 +5,16 @@ import { useLocation } from 'react-router-dom'
 import { assets } from '@/assets/assets'
 import { ShopContext } from '@/context/ShopContext'
 import { toast } from 'sonner'
+import { useTranslation } from 'react-i18next';
 
 const Navbar = () => {
+  const { t, i18n } = useTranslation();
   const [visible, setVisible] = useState(false) // State to toggle sidebar
   const [showNavbar, setShowNavbar] = useState(true)
   const [lastScrollY, setLastScrollY] = useState(0)
   const [categories, setCategories] = useState({
-    'New & Featured': {
-      subcategories: ['New Releases', 'Best Sellers', 'Y2K Sneakers']
+    'All Products': {
+      subcategories: ['']
     },
     Men: { subcategories: [] },
     Women: { subcategories: [] },
@@ -59,7 +61,7 @@ const Navbar = () => {
 
       if (data.success) {
         const formattedCategories = {
-          'New & Featured': categories['New & Featured'],
+          'All Products': categories['All Products'],
           Men: { subcategories: data.categories.Men || [] },
           Women: { subcategories: data.categories.Women || [] },
           Kids: { subcategories: data.categories.Kids || [] }
@@ -77,11 +79,16 @@ const Navbar = () => {
     fetchCategories()
   }, [])
 
+  const toggleLanguage = () => {
+    i18n.changeLanguage(i18n.language === 'en' ? 'fr' : 'en');
+  };
+
   return (
     <>
       {/* Add a spacer div to prevent the navbar from overlapping the content */}
       <div className="h-[80px]"></div> {/* Adjust the height to match the navbar's height */}
       <div
+        id="google_translate_element"
         className={`fixed top-0 left-0 w-full pl-2 pr-2 sm:pl-16 sm:pr-16 z-50 bg-white transition-transform duration-300 ${
           showNavbar ? 'translate-y-0' : '-translate-y-full'
         }`}
@@ -95,7 +102,15 @@ const Navbar = () => {
           <ul className='hidden sm:flex gap-5 text-sm text-black'>
             {Object.keys(categories).map((category) => (
               <div key={category} className="group relative">
-                <NavLink className='flex flex-col text-[16px] items-center gap-1'>
+                <NavLink 
+                  to={category === 'All Products' ? '/collection' : '#'} 
+                  className='flex flex-col text-[16px] items-center gap-1'
+                  onClick={(e) => {
+                    if (category !== 'All Products') {
+                      e.preventDefault();
+                    }
+                  }}
+                >
                   <p>{category}</p>
                   <hr className='w-3/4 border-none h-[2px] bg-black scale-0 transition-all duration-500 group-hover:scale-100' />
                 </NavLink>
@@ -125,13 +140,22 @@ const Navbar = () => {
           </ul>
   
           <div className='flex items-center gap-6'>
-            {/* pre-order button */}
+            {/* Language toggle button */}
             <button 
-              className='w-40 h-8 hidden sm:block rounded-full bg-black text-white text-sm '
+              onClick={toggleLanguage}
+              className='px-2 py-1 text-sm border rounded hover:bg-gray-100'
             >
-              <span>Pre-Order Now</span>
-              <MdOutlineArrowRightAlt className='inline-block ml-2 bg-white text-black rounded-full w-5 h-5' />
+              {i18n.language === 'en' ? 'FR' : 'EN'}
             </button>
+
+            {/* pre-order button */}
+            <button className='w-40 h-8 hidden sm:block rounded-full bg-black text-white text-sm'>
+              <Link to="/collection?preorder=true">
+                <span>{t('preorder_now')}</span>
+                <MdOutlineArrowRightAlt className='inline-block ml-2 bg-white text-black rounded-full w-5 h-5' />
+              </Link>
+            </button>
+           
 
             <img
               src={assets.search}
@@ -165,22 +189,22 @@ const Navbar = () => {
                           text-gray-600'
                   >
                     <p
-                      onClick={() => toast.info('Sorry, this page was not yet implemented!')}
+                      onClick={() => toast.info(t('not_implemented'))}
                       className='cursor-pointer hover:text-black hover:bg-gray-100 duration-300 py-2 px-5'
                     >
-                      My profile
+                      {t('my_profile')}
                     </p>
                     <p
                       onClick={() => navigate('/orders')}
                       className='cursor-pointer hover:text-black hover:bg-gray-100 duration-300 py-2 px-5'
                     >
-                      Orders
+                      {t('orders')}
                     </p>
                     <p
                       className='cursor-pointer hover:text-black py-2 px-5 hover:bg-gray-100 duration-300'
                       onClick={logout}
                     >
-                      Logout
+                      {t('logout')}
                     </p>
                   </div>
                 </div>
@@ -220,20 +244,20 @@ const Navbar = () => {
             className='flex items-center justify-center text-black text-lg font-bold'
           >
             <MdOutlineKeyboardBackspace className='size-6 mx-2'/> 
-            <span>Go Back</span>
+            <span>{t('go_back')}</span>
           </button>
           <ul className='mt-5 flex flex-col gap-4'>
             <NavLink to='/' onClick={() => setVisible(false)} className='py-2 pl-6 border-t hover:text-black'>
-              Home
+              {t('home')}
             </NavLink>
             <NavLink to='/collection' onClick={() => setVisible(false)} className='py-2 pl-6 border-t hover:text-black'>
-              Collection
+              {t('collection')}
             </NavLink>
             <NavLink to='/about' onClick={() => setVisible(false)} className='py-2 pl-6 border-t hover:text-black'>
-              About
+              {t('about')}
             </NavLink>
             <NavLink to='/contact' onClick={() => setVisible(false)} className='py-2 pl-6 border-t hover:text-black'>
-              Contact
+              {t('contact')}
             </NavLink>
           </ul>
         </div>
