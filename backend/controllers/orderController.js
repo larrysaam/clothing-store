@@ -1,7 +1,9 @@
 import orderModel from "../models/orderModel.js";
 import userModel from "../models/userModel.js";
+import productModel from "../models/productModel.js";
 import Stripe from 'stripe'
 import { sendOrderNotification } from '../utils/emailService.js'
+import { trusted } from "mongoose";
 
 //global variables
 const currency = process.env.CURRENCY || 'EUR' // Default currency symbol
@@ -12,43 +14,45 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 //Placing orders using COD method
 const placeOrder = async (req, res) => {
-    try {
-        const { userId, items, amount, address } = req.body;
+  try {
+    const { userId, items, amount, address } = req.body;
 
-        const orderData = {
-            userId,
-            items,
-            address,
-            amount,
-            paymentMethod: "COD",
-            payment: false,
-            date: Date.now()
-        }
+    // Update product quantities first
+    await updateProductQuantities(items);
 
-        const newOrder = new orderModel(orderData)
-        await newOrder.save({ writeConcern: { w: 1 } }) // Set write concern to primary only
+    const orderData = {
+      userId,
+      items,
+      address,
+      amount,
+      paymentMethod: "COD",
+      payment: false,
+      date: Date.now()
+    };
 
-        // Send email notification
-        await sendOrderNotification(newOrder)
+    const newOrder = new orderModel(orderData);
+    await newOrder.save();
 
-        //clear the cart
-        await userModel.findByIdAndUpdate(
-            userId,
-            { cartData: {} },
-            { writeConcern: { w: 1 } }
-        )
+    // Send email notification
+    await sendOrderNotification(newOrder);
 
-        res.json({
-            success: true,
-            message: 'Order placed'
-        })
-    } catch (error) {
-        console.log(error)
-        res.json({
-            success: false,
-            message: error.message
-        })
-    }
+    // Clear the cart
+    await userModel.findByIdAndUpdate(
+      userId,
+      { cartData: {} }
+    );
+
+    res.json({
+      success: true,
+      message: 'Order placed successfully'
+    });
+  } catch (error) {
+    console.error('Place order error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
 }
 
 
@@ -295,4 +299,193 @@ const createOrder = async (req, res) => {
   }
 };
 
-export { placeOrder, placeOrderStripe, allOrders, userOrders, updateStatus, verifyStripe, validatePayment, createPaymentIntent, createOrder }
+const createCheckoutSession = async (req, res) => {
+  try {
+    const { items, address } = req.body;
+    const userId = req.body.userId; // Get userId from auth middleware
+
+    // Create line items for Stripe with proper image handling
+    const lineItems = items.map(item => {
+      // Ensure image is a valid URL string and wrap it in an array
+      const imageUrl = Array.isArray(item.image) ? item.image[0] : item.image;
+      
+      return {
+        price_data: {
+          currency: process.env.CURRENCY || 'usd',
+          product_data: {
+            name: item.name,
+            description: item.description || 'No description provided',
+            images: imageUrl ? [imageUrl] : [], // Must be an array with valid URLs
+          },
+          unit_amount: Math.round(item.price * 100),
+        },
+        quantity: item.quantity,
+      };
+    });
+
+    // Add delivery fee
+    lineItems.push({
+      price_data: {
+        currency: process.env.CURRENCY || 'usd',
+        product_data: {
+          name: 'Delivery Fee',
+          description: 'Standard Shipping',
+        },
+        unit_amount: 1000, // $10.00
+      },
+      quantity: 1,
+    });
+
+    const order = new orderModel({
+      userId,
+      items,
+      address,
+      amount: items.reduce((acc, item) => acc + (item.price * item.quantity), 0) + 10,
+      paymentMethod: 'stripe',
+      status: 'pending',
+      payment: false,
+      date: new Date()
+    });
+
+    // Save with proper write concern
+    await order.save({ writeConcern: { w: 1 } }); // Use w: 1 for primary acknowledgment
+
+    const session = await stripe.checkout.sessions.create({
+      customer_email: address.email,
+      line_items: lineItems,
+      mode: 'payment',
+      success_url: `${req.headers.origin}/order-success?session_id={CHECKOUT_SESSION_ID}&order_id=${order._id}`,
+      cancel_url: `${req.headers.origin}/cart`,
+      metadata: {
+        orderId: order._id.toString(),
+        userId: userId.toString()
+      },
+      shipping_address_collection: {
+        allowed_countries: ['US', 'CA', 'GB', 'FR'],
+      },
+    });
+
+    
+
+    res.json({ 
+      success: true,
+      sessionId: session.id,
+      sessionUrl: session.url 
+    });
+  } catch (error) {
+    console.error('Checkout session error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+const verifyCheckoutSession = async (req, res) => {
+  try {
+    const { sessionId, orderId } = req.query;
+
+    console.log('Verifying session:', sessionId);
+
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    console.log('Session status:', session.payment_status);
+
+    if (session.payment_status === 'paid') {
+      // Get order details first
+      const order = await orderModel.findById(orderId);
+      if (!order) {
+        throw new Error('Order not found');
+      }
+
+      // Update product quantities
+      await updateProductQuantities(order.items);
+
+      // Update order status
+      const updatedOrder = await orderModel.findByIdAndUpdate(
+        orderId,
+        {
+          payment: true,
+          status: 'processing',
+          paymentId: session.payment_intent
+        },
+        { new: true }
+      );
+
+      // Clear cart
+      await userModel.findByIdAndUpdate(
+        session.metadata.userId,
+        { cartData: {} }
+      );
+
+      // Send notification
+      await sendOrderNotification(updatedOrder);
+
+      res.json({
+        success: true,
+        order: updatedOrder
+      });
+    } else if (session.payment_status === 'unpaid') {
+      // Payment failed
+      await orderModel.findByIdAndUpdate(
+        orderId,
+        {
+          status: 'cancelled',
+          payment: false
+        }
+      );
+
+      res.status(400).json({
+        success: false,
+        message: 'Payment was not completed'
+      });
+    } else {
+      console.warn('Unexpected payment status:', session.payment_status);
+      throw new Error(`Unexpected payment status: ${session.payment_status}`);
+    }
+  } catch (error) {
+    console.error('Session verification error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// Add this helper function
+const updateProductQuantities = async (items) => {
+  console.log('Updating product quantities for items:', items);
+  try {
+    for (const item of items) {
+      const product = await productModel.findById(item._id);
+      if (!product) {
+        throw new Error(`Product ${item._id} not found`);
+      }
+
+      console.log('Product found:', product.name);
+
+      // Find the size object in the sizes array
+      const sizeObj = product.sizes.find(s => s.size === item.size);
+      
+      if (!sizeObj) {
+        throw new Error(`Size ${item.size} not found for product ${product.name}`);
+      }
+
+      // Check if quantity is available
+      if (sizeObj.quantity < item.quantity) {
+        throw new Error(`Insufficient quantity for ${product.name} in size ${item.size}`);
+      }
+
+      // Update the quantity in the size object
+      sizeObj.quantity -= item.quantity;
+
+      // Save the updated product
+      await product.save();
+      console.log(`Updated quantity for ${product.name} size ${item.size}: ${sizeObj.quantity}`);
+    }
+  } catch (error) {
+    console.error('Error updating quantities:', error);
+    throw new Error(`Failed to update product quantities: ${error.message}`);
+  }
+};
+
+export { placeOrder, placeOrderStripe, allOrders, userOrders, updateStatus, verifyStripe, validatePayment, createPaymentIntent, createOrder, createCheckoutSession, verifyCheckoutSession }

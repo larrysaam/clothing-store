@@ -3,7 +3,7 @@ import axios from 'axios'
 import { backendUrl, currency } from '../App'
 import { toast } from "sonner"
 import { BsPencil, BsTrash } from 'react-icons/bs'
-
+import EditProductDialog from '../components/EditProductDialog';
 
 const List = ({token}) => {
 
@@ -17,6 +17,8 @@ const List = ({token}) => {
     category: '',
     description: ''
   })
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
   const itemsPerPage = 5
 
   const fetchList = async () => {
@@ -51,35 +53,18 @@ const List = ({token}) => {
     }
   }
 
-  // Add handleEdit function
-  const handleEdit = (item) => {
-    setEditingItem(item._id)
-    setEditForm({
-      name: item.name,
-      price: item.price,
-      category: item.category,
-      description: item.description
-    })
-  }
+  // Update handleEdit function
+  const handleEdit = (product) => {
+    setSelectedProduct(product);
+    setIsEditDialogOpen(true);
+  };
 
-  // Add handleUpdate function
-  const handleUpdate = async (id) => {
-    try {
-      const response = await axios.put(
-        `${backendUrl}/api/product/update/${id}`,
-        editForm,
-        { headers: { token } }
-      )
-
-      if (response.data.success) {
-        toast.success('Product updated successfully')
-        setEditingItem(null)
-        await fetchList()
-      }
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to update product')
-    }
-  }
+  // Add handleEditComplete function
+  const handleEditComplete = async () => {
+    await fetchList();
+    setSelectedProduct(null);
+    setIsEditDialogOpen(false);
+  };
 
   // Get current products
   const indexOfLastItem = currentPage * itemsPerPage
@@ -213,6 +198,17 @@ const List = ({token}) => {
         </div>
       )}
     </div>
+
+    {/* Replace the inline edit form with the dialog */}
+    {selectedProduct && (
+      <EditProductDialog
+        product={selectedProduct}
+        isOpen={isEditDialogOpen}
+        onClose={() => setIsEditDialogOpen(false)}
+        onUpdate={handleEditComplete}
+        token={token}
+      />
+    )}
   </>
   )
 }

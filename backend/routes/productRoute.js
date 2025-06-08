@@ -2,6 +2,7 @@ import { addProduct, listProducts, removeProduct, singleProduct, updateProduct, 
 import express from 'express'
 import upload from '../middleware/multer.js';
 import adminAuth from '../middleware/adminAuth.js';
+import authUser from '../middleware/auth.js';
 
 const productRouter = express.Router();
 
@@ -16,7 +17,7 @@ productRouter.post('/add',adminAuth, upload.fields(
 productRouter.post('/remove',adminAuth, removeProduct);
 productRouter.post('/single', singleProduct);
 productRouter.get('/list', listProducts);
-productRouter.put('/update/:id', adminAuth, updateProduct)
 productRouter.put('/quantity', adminAuth, updateQuantity)
+productRouter.put('/update/:id', authUser, updateProduct);
 
 export default productRouter

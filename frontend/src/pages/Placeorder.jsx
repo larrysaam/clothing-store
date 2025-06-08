@@ -3,161 +3,106 @@ import Title from '@/components/Title'
 import CartTotal from '@/features/shared/CartTotal'
 import { assets } from '@/assets/assets'
 import { ShopContext } from '@/context/ShopContext'
-import { toast } from 'react-toastify';
+import { toast } from 'sonner'
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { Input } from "@/components/ui/input"
 import { useMutation } from "@tanstack/react-query"
 import axios from "axios"
-import { Elements } from '@stripe/react-stripe-js';
-import { loadStripe } from '@stripe/stripe-js';
-import StripeElement from '@/components/payment/StripeElement';
 
-// Initialize Stripe
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+const orderSchema = z.object({
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  email: z.string().email("Invalid email"),
+  street: z.string().min(1, "Street is required"),
+  city: z.string().min(1, "City is required"),
+  state: z.string().min(1, "State is required"),
+  zipcode: z.string().min(1, "Zipcode is required"),
+  country: z.string().min(1, "Country is required"),
+  phone: z.string().min(1, "Phone number is required"),
+})
 
 const Placeorder = () => {
-
-  const orderSchema = z.object({
-    firstName: z.string().min(1, "First name is required"),
-    lastName: z.string().min(1, "Last name is required"),
-    email: z.string().email("Invalid email"),
-    street: z.string().min(1, "Street is required"),
-    city: z.string().min(1, "City is required"),
-    state: z.string().min(1, "State is required"),
-    zipcode: z.string().min(1, "Zipcode is required"),
-    country: z.string().min(1, "Country is required"),
-    phone: z.string().min(1, "Phone number is required"),
-  })
-
   const [method, setMethod] = useState('cod')
-  const [clientSecret, setClientSecret] = useState("");
   const { navigate, backendUrl, token, cartItems,
     resetCart, getCartAmount, deliveryFee, products } = useContext(ShopContext)
 
   const {
     control,
     handleSubmit,
-    formState: { errors },
-    getValues
+    formState: { errors }
   } = useForm({
-    resolver: zodResolver(orderSchema),
-    defaultValues: {
-      firstName: '',
-      lastName: '',
-      email: '',
-      street: '',
-      city: '',
-      state: '',
-      zipcode: '',
-      country: '',
-      phone: ''
-    }
+    resolver: zodResolver(orderSchema)
   })
 
-  // Prepare mutation for COD
-  const placeOrderMutation = useMutation({
-    mutationFn: (orderData) =>
-      axios.post(`${backendUrl}/api/order/place`, orderData, { headers: { token } }),
-    onSuccess: (res) => {
-      if (res.data.success) {
-        resetCart()
-        toast.success('Order placed successfully!')
-        navigate('/orders')
-      } else {
-        toast.error(res.data.message)
-      }
-    },
-    onError: (error) => {
-      toast.error(error.message)
-    },
-  })
-
-  // Prepare mutation for Stripe
-  const stripeOrderMutation = useMutation({
-    mutationFn: (orderData) =>
-      axios.post(`${backendUrl}/api/order/stripe`, orderData, { headers: { token } }),
-    onSuccess: (res) => {
-      console.log('Stripe order placed response : ', res.data)
-      if (res.data.success) {
-        toast.success('Redirecting to payment...')
-        window.location.replace(res.data.session_url)
-      } else {
-        toast.error(res.data.message)
-      }
-    },
-    onError: (error) => {
-      toast.error(error.message)
-    },
-  })
-
-  // Check if any mutation is loading
-  const isLoading = placeOrderMutation.isPending || stripeOrderMutation.isPending
-
-  // Create payment intent for Stripe
-  const createPaymentIntent = async (orderData) => {
-    try {
-      const response = await axios.post(
-        `${backendUrl}/api/order/create-payment-intent`, 
-        orderData,
-        { headers: { token } }
-      );
-
-      console.log('Payment intent response:', response.data);
+  const createOrderMutation = useMutation({
+    mutationFn: (orderData) => {
+      const endpoint = method === 'stripe' 
+        ? `${backendUrl}/api/order/create-checkout-session`
+        : `${backendUrl}/api/order/place`
       
-      if (response.data.clientSecret) {
-        setClientSecret(response.data.clientSecret);
+      console.log('Creating order with method:', method)  
+      return axios.post(endpoint, orderData, { headers: { token } })
+    },
+    onSuccess: (res) => {
+      if (res.data.success) {
+        if (method === 'stripe') {
+          // Handle Stripe checkout redirect
+          const checkoutUrl = res.data.sessionUrl;
+          
+          // Create a flag in localStorage to track checkout status
+          localStorage.setItem('stripeCheckoutPending', 'true');
+          
+          // Redirect to Stripe Checkout
+          window.location.href = checkoutUrl;
+        } else {
+          // Handle COD success
+          resetCart();
+          toast.success('Order placed successfully!');
+          navigate('/orders');
+        }
+      } else {
+        toast.error(res.data.message);
+        navigate('/cart');
       }
-    } catch (error) {
-      toast.error('Failed to initialize payment');
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Failed to process order');
+      navigate('/cart');
     }
-  };
+  });
 
-  const handleOrderComplete = () => {
-    resetCart();
-    navigate('/orders');
-  };
-
-  // Collect data from cart + form and submit
-  const onSubmitHandler = async (data) => {
-    try {
-      let orderItems = [];
-
-      for (const items in cartItems) {
-        for (const item in cartItems[items]) {
-          if (cartItems[items][item] > 0) {
-            const itemInfo = structuredClone(products.find(product => product._id === items));
-            if (itemInfo) {
-              itemInfo.size = item;
-              itemInfo.quantity = cartItems[items][item];
-              orderItems.push(itemInfo);
+  const onSubmit = (formData) => {
+    // Collect items from cart
+    const orderItems = Object.entries(cartItems).flatMap(([productId, sizes]) => 
+      Object.entries(sizes).map(([size, quantity]) => {
+        if (quantity > 0) {
+          const product = products.find(p => p._id === productId)
+          if (product) {
+            return {
+              ...product,
+              size,
+              quantity
             }
           }
         }
-      }
+        return null
+      }).filter(Boolean)
+    )
 
-      const orderData = {
-        address: data,
-        items: orderItems,
-        amount: getCartAmount() + deliveryFee,
-        paymentMethod: method,
-        payment: true,
-      };
-
-      if (method === 'stripe') {
-        console.log('Creating payment intent with order data:', orderData);
-        await createPaymentIntent(orderData);
-      } else {
-        placeOrderMutation.mutate(orderData);
-      }
-    } catch (error) {
-      toast.error(error.message);
+    const orderData = {
+      address: formData,
+      items: orderItems,
+      amount: getCartAmount() + deliveryFee,
+      paymentMethod: method
     }
-  };
+
+    createOrderMutation.mutate(orderData)
+  }
 
   return (
-    <form onSubmit={handleSubmit(onSubmitHandler)} className='flex flex-col sm:flex-row justify-between lg:justify-evenly gap-4 pt-5 sm:pt-14 min-h-[70vh] border-t animate-fade animate-duration-500'>
+    <form onSubmit={handleSubmit(onSubmit)} className='flex flex-col sm:flex-row justify-between lg:justify-evenly gap-4 pt-5 sm:pt-14 min-h-[70vh] border-t animate-fade animate-duration-500'>
 
       {/* Left Side - Form */}
       <div className='flex flex-col gap-4 w-full sm:max-w-[480px]'>
@@ -246,58 +191,47 @@ const Placeorder = () => {
                 method === 'stripe' ? 'border-black' : ''
               }`}
             >
-              <div className="flex items-center gap-3 mb-4">
+              <div className="flex items-center gap-3">
                 <div className={`w-3.5 h-3.5 border rounded-full ${
                   method === 'stripe' ? 'bg-green-400' : ''
                 }`} />
-                <p className='text-gray-700 text-sm font-medium'>Online payment</p>
+                <p className='text-gray-700 text-sm font-medium'>Card Payment</p>
                 <img alt='' src={assets.stripe} className='h-5' />
               </div>
-              
-              {method === 'stripe' && clientSecret && (
-                <Elements 
-                  stripe={stripePromise} 
-                  options={{
-                    clientSecret,
-                    appearance: { theme: 'stripe' }
-                  }}
-                >
-                  <StripeElement
-                    amount={getCartAmount() + deliveryFee}
-                    orderData={orderData} // Pass current form data
-                    onOrderComplete={handleOrderComplete}
-                  />
-                </Elements>
-              )}
             </div>
 
-            <div onClick={() => setMethod('cod')}
-              className={`flex items-center gap-3 border py-2 px-3 cursor-pointer 
-             transistion-all duration-100 ${method === 'cod' ? 'border-black' : ''}`}>
-              <p className={`min-w-3.5 h-3.5 border rounded-full transistion-all duration-100 ${method === 'cod' ? 'bg-green-400' : ''}`}></p>
-              <p className='text-gray-700 text-sm font-medium mx-4'>Cash on delivery</p>
+            <div 
+              onClick={() => setMethod('cod')}
+              className={`flex items-center gap-3 border p-4 cursor-pointer ${
+                method === 'cod' ? 'border-black' : ''
+              }`}
+            >
+              <div className={`w-3.5 h-3.5 border rounded-full ${
+                method === 'cod' ? 'bg-green-400' : ''
+              }`} />
+              <p className='text-gray-700 text-sm font-medium'>Cash on delivery</p>
             </div>
           </div>
 
           <div className='w-full text-end mt-8'>
             <button 
               type='submit'
-              disabled={isLoading}
+              disabled={createOrderMutation.isPending}
               className={`px-16 py-3 text-sm transition-all duration-300 
-              ${isLoading 
-                ? 'bg-gray-400 cursor-not-allowed' 
-                : 'bg-black hover:bg-slate-700'} 
-              text-white`}
-          >
-            {isLoading ? (
-              <span className="flex items-center justify-center gap-2">
-                <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
-                PLACING ORDER...
-              </span>
-            ) : (
-              'PLACE ORDER'
-            )}
-          </button>
+                ${createOrderMutation.isPending 
+                  ? 'bg-gray-400 cursor-not-allowed' 
+                  : 'bg-black hover:bg-slate-700'} 
+                text-white`}
+            >
+              {createOrderMutation.isPending ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
+                  PROCESSING...
+                </span>
+              ) : (
+                'PLACE ORDER'
+              )}
+            </button>
           </div>
         </div>
       </div>

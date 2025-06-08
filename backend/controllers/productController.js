@@ -153,47 +153,52 @@ const singleProduct = async (req,res) => {
 
 const updateProduct = async (req, res) => {
   try {
-    const { id } = req.params
-    const { name, price, category, description } = req.body
+    const { id } = req.params;
+    const updates = req.body;
 
-    // Validate inputs
-    if (!name || !price || !category) {
+    // Validate the updates
+    if (!updates) {
       return res.status(400).json({
         success: false,
-        message: 'Name, price, and category are required'
-      })
+        message: 'No update data provided'
+      });
     }
 
     // Find and update the product
     const updatedProduct = await productModel.findByIdAndUpdate(
       id,
       {
-        name,
-        price,
-        category,
-        description
+        $set: {
+          name: updates.name,
+          description: updates.description,
+          category: updates.category,
+          subcategory: updates.subcategory,
+          price: updates.price,
+          sizes: updates.sizes,
+          image: updates.image
+        }
       },
       { new: true }
-    )
+    );
 
     if (!updatedProduct) {
       return res.status(404).json({
         success: false,
         message: 'Product not found'
-      })
+      });
     }
 
     res.json({
       success: true,
       message: 'Product updated successfully',
       product: updatedProduct
-    })
+    });
   } catch (error) {
-    console.error('Update product error:', error)
+    console.error('Update product error:', error);
     res.status(500).json({
       success: false,
-      message: error.message || 'Failed to update product'
-    })
+      message: error.message
+    });
   }
 }
 

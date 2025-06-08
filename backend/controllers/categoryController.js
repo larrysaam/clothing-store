@@ -2,12 +2,16 @@ import Category from '../models/categoryModel.js'
 
 export const getCategories = async (req, res) => {
   try {
-    const categories = await Category.findOne()
+    const categories = await Category.findOne({}, { _id: 0, __v: 0 })
     console.log('Fetched categories:', categories)
     
     res.json({ success: true, categories })
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message })
+    console.error('Get categories error:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch categories'
+    })
   }
 }
 

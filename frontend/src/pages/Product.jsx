@@ -205,12 +205,14 @@ const Product = () => {
               ) : (
                 <button 
                   onClick={handlePreorder}
-                  disabled={!selectedSize}
+                  disabled={!selectedSize || availableQuantity === 0}
                   className={`bg-blue-600 text-white px-8 py-3 text-sm rounded-full ${
-                    !selectedSize ? 'opacity-50 cursor-not-allowed' : 'active:bg-blue-700'
+                    (!selectedSize || availableQuantity === 0) 
+                      ? 'opacity-50 cursor-not-allowed' 
+                      : 'active:bg-blue-700'
                   }`}
                 >
-                  PREORDER NOW
+                  {availableQuantity === 0 ? 'OUT OF STOCK' : 'PREORDER NOW'}
                 </button>
               )
             ) : (
