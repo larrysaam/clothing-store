@@ -1,19 +1,21 @@
-import express from 'express'
-import adminAuth from '../middleware/auth.js'
-import authUser from '../middleware/auth.js'
-import { 
-  getCategories, 
-  addSubcategory, 
-  updateSubcategory, 
-  deleteSubcategory 
-} from '../controllers/categoryController.js'
+import express from 'express';
+import adminAuth  from '../middleware/adminAuth.js';
+import {
+  addMainCategory,
+  addSubcategory,
+  addSecondLevelSubcategory,
+  deleteCategory,
+  getCategories,
+  getUserCategories
+} from '../controllers/categoryController.js';
 
-const router = express.Router()
+const router = express.Router();
 
-router.get('/', adminAuth, getCategories)
-router.get('/user', getCategories) // For user to fetch categories
-router.post('/add', adminAuth, addSubcategory)
-router.put('/update', adminAuth, updateSubcategory)
-router.delete('/delete', adminAuth, deleteSubcategory)
+router.get('/', getCategories);
+router.post('/addMain', adminAuth, addMainCategory);
+router.post('/addSub', adminAuth, addSubcategory);
+router.post('/addSubSub', adminAuth, addSecondLevelSubcategory);
+router.delete('/delete', adminAuth, deleteCategory);
+router.get('/user', getUserCategories);
 
-export default router
+export default router;

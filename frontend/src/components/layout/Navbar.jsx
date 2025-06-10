@@ -59,14 +59,23 @@ const Navbar = () => {
       })
       const data = await response.json()
 
+      console.log('Fetched categories:', data)
+
       if (data.success) {
+        // Transform backend data to match our structure
         const formattedCategories = {
           'All Products': categories['All Products'],
-          Men: { subcategories: data.categories.Men || [] },
-          Women: { subcategories: data.categories.Women || [] },
-          Kids: { subcategories: data.categories.Kids || [] }
-        }
-        setCategories(formattedCategories)
+          ...Object.keys(data.categories).reduce((acc, mainCat) => {
+            acc[mainCat] = {
+              subcategories: data.categories[mainCat].subcategories.map(sub => ({
+                name: sub.name,
+                subcategories: sub.subcategories || []
+              }))
+            };
+            return acc;
+          }, {})
+        };
+        setCategories(formattedCategories);
       }
     } catch (error) {
       console.error('Failed to fetch categories:', error)
@@ -81,6 +90,43 @@ const Navbar = () => {
 
   const toggleLanguage = () => {
     i18n.changeLanguage(i18n.language === 'en' ? 'fr' : 'en');
+  };
+
+  const renderSubcategories = (category) => {
+    if (category === 'All Products') return null;
+    
+    return (
+      <div className="absolute invisible group-hover:visible opacity-0 group-hover:opacity-100 
+                    transition-all duration-300 left-1/2 -translate-x-1/2 pt-5 w-screen bg-white shadow-lg">
+        <div className="container mx-auto px-16 py-8">
+          <div className="grid grid-cols-4 gap-8">
+            {categories[category].subcategories.map((firstLevel) => (
+              <div key={firstLevel.name} className="flex flex-col gap-4">
+                {/* First level subcategory as heading */}
+                <Link 
+                  to={`/collection?category=${category}&subcategory=${firstLevel.name}`}
+                  className="font-medium text-black hover:text-gray-700"
+                >
+                  {firstLevel.name}
+                </Link>
+                {/* Second level subcategories */}
+                <div className="flex flex-col gap-2">
+                  {firstLevel.subcategories.map((secondLevel) => (
+                    <Link
+                      key={secondLevel}
+                      to={`/collection?category=${category}&subcategory=${firstLevel.name}&second=${secondLevel}`}
+                      className="text-gray-600 hover:text-black text-sm"
+                    >
+                      {secondLevel}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -114,27 +160,7 @@ const Navbar = () => {
                   <p>{category}</p>
                   <hr className='w-3/4 border-none h-[2px] bg-black scale-0 transition-all duration-500 group-hover:scale-100' />
                 </NavLink>
-                
-                {/* Dropdown Menu */}
-                <div className="absolute invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-300 left-1/2 -translate-x-1/2 pt-5 w-screen bg-white shadow-lg">
-                  <div className="container mx-auto px-16 py-8">
-                    <div className="grid grid-cols-4 gap-8">
-                      {categories[category].subcategories?.map((subcategory) => (
-                        <div key={subcategory} className="flex flex-col gap-2">
-                          <Link 
-                            to={{
-                              pathname: '/collection',
-                              search: `?category=${category.toLowerCase()}&subcategory=${subcategory.toLowerCase().replace(/ /g, '-')}`
-                            }}
-                            className="text-gray-600 hover:text-black text-sm"
-                          >
-                            {subcategory}
-                          </Link>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+                {renderSubcategories(category)}
               </div>
             ))}
           </ul>

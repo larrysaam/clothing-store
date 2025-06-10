@@ -1,52 +1,152 @@
-import React, { useEffect, useState } from 'react'
-import { toast } from 'sonner'
-import { Input } from '@/components/ui/input'
+import React, { useState, useEffect } from 'react'
+import { useSettings } from '@/features/settings/hooks/useSettings'
+import { useImageUpload } from '@/features/settings/hooks/useImageUpload'
+import { CurrencySettings } from '@/features/settings/components/CurrencySettings'
+import { NotificationSettings } from '@/features/settings/components/NotificationSettings'
+import { ImageSettings } from '@/features/settings/components/ImageSettings'
+import { BannerLinkSection } from '@/features/settings/components/BannerLinkSection'
+import { HeroLinkSection } from '@/features/settings/components/HeroLinkSection'
+import { se } from 'date-fns/locale'
 import axios from 'axios'
-import { backendUrl } from '../App'
-
+import { toast } from "sonner"
+import { backendUrl } from '@/lib/utils'
 
 const Settings = ({ token }) => {
+  const { updateSettings } = useSettings(token)
+
+  // Initialize settings with default values
   const [settings, setSettings] = useState({
     currency: { name: '', sign: '' },
     email: { notifications: '' },
-    images: { hero: [], banner: '' }
-  })
-  const [heroFiles, setHeroFiles] = useState([])
-  const [bannerFile, setBannerFile] = useState(null)
-  const [isLoading, setIsLoading] = useState(false)
-
-  useEffect(() => {
-    fetchSettings()
-  }, [])
-
-  const fetchSettings = async () => {
-    try {
-      const response = await axios.get(`${backendUrl}/api/settings`, {
-        headers: { token }
-      })
-      if (response.data.success) {
-        setSettings(response.data.settings)
-      }
-    } catch (error) {
-      toast.error('Failed to fetch settings')
+    images: { hero: [], banner: '' },
+    text: { banner: '', hero: '' },
+    link: {
+      productId: '',
+      category: '',
+      subcategory: '',
+      subsubcategory: ''
+    },
+    herolink: {
+      productId: '',
+      category: '',
+      subcategory: '',
+      subsubcategory: ''
     }
-  }
+  })
+
+  // Add new state for products and categories
+  const [products, setProducts] = useState([])
+  const [categories, setCategories] = useState({})
+
+  const [isLoading, setIsLoading] = useState(false)
+  const [bannerText, setBannerText] = useState('')
+  const [linkType, setLinkType] = useState('product')
+  const [selectedLink, setSelectedLink] = useState({
+    productId: '',
+    category: '',
+    subcategory: '',
+    subsubcategory: ''
+  })
+
+  // Add useEffect to fetch initial settings
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const response = await axios.get(`${backendUrl}/api/settings`, {
+          headers: { token }
+        })
+        console.log('Fetched settings:', response.data)
+        if (response.data.success) {
+          setSettings(response.data.settings)
+          setBannerText(response.data.settings.text.banner || '')
+          // Set initial link type based on existing settings
+          setLinkType(response.data.settings.link.productId ? 'product' : 'category')
+          setSelectedLink({
+            productId: response.data.settings.link.productId || '',
+            category: response.data.settings.link.category || '',
+            subcategory: response.data.settings.link.subcategory || '',
+            subsubcategory: response.data.settings.link.subsubcategory || ''
+          })
+        }
+      } catch (error) {
+        console.error('Failed to fetch settings:', error)
+        toast.error('Failed to load settings')
+      }
+    }
+
+    fetchSettings()
+  }, [token])
+
+  // Add new useEffect to fetch products and categories
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [productsRes, categoriesRes] = await Promise.all([
+          axios.get(`${backendUrl}/api/product/list`),
+          axios.get(`${backendUrl}/api/categories`)
+        ]);
+
+        console.log('Fetched products:', productsRes.data)
+        console.log('Fetched categories:', categoriesRes.data)  
+
+        if (productsRes.data.success) {
+          setProducts(productsRes.data.products)
+        }
+        if (categoriesRes.data.success) {
+          setCategories(categoriesRes.data.categories)
+        }
+      } catch (error) {
+        console.error('Failed to fetch products/categories:', error)
+        toast.error('Failed to load products and categories')
+      }
+    }
+
+    fetchData()
+  }, []) // Empty dependency array since we only need to fetch once
+
+  const {
+    heroFiles,
+    bannerFile,
+    handleHeroImagesChange,
+    handleBannerImageChange
+  } = useImageUpload()
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    setIsLoading(true)
-
+    
     try {
+      setIsLoading(true)
       const formData = new FormData()
       formData.append('currency[name]', settings.currency.name)
       formData.append('currency[sign]', settings.currency.sign)
       formData.append('email[notifications]', settings.email.notifications)
       
-      // Handle multiple hero images
+      // Handle text updates
+      formData.append('text[banner]', bannerText)
+      formData.append('text[hero]', settings.text.hero)
+      
+      // Handle link updates
+      formData.append('link', JSON.stringify({
+        productId: settings.link.productId || '',
+        category: settings.link.category || '',
+        subcategory: settings.link.subcategory || '',
+        subsubcategory: settings.link.subsubcategory || ''
+      }))
+
+      // Handle hero link updates
+      formData.append('herolink', JSON.stringify({
+        productId: settings.herolink.productId || '',
+        category: settings.herolink.category || '',
+        subcategory: settings.herolink.subcategory || '',
+        subsubcategory: settings.herolink.subsubcategory || ''
+      }))
+      
+      // Handle image uploads
       heroFiles.forEach(file => {
         formData.append('hero', file)
       })
       
+      // Handle banner image
       if (bannerFile) {
         formData.append('banner', bannerFile)
       }
@@ -59,130 +159,80 @@ const Settings = ({ token }) => {
       })
 
       if (response.data.success) {
-        toast.success('Settings updated successfully')
         setSettings(response.data.settings)
-        setHeroFiles([])
+        toast.success('Settings updated successfully')
       }
     } catch (error) {
+      console.error('Failed to update settings:', error)
       toast.error('Failed to update settings')
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleHeroImagesChange = (e) => {
-    const files = Array.from(e.target.files)
-    if (files.length > 5) {
-      toast.error('Maximum 5 hero images allowed')
-      return
-    }
-    setHeroFiles(files)
-  }
-
+  // Update HeroLinkSection props
   return (
     <div className="p-4 sm:p-6 max-w-2xl">
-      <h1 className="text-2xl font-bold mb-6">Store Settings</h1>
-      
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold">Currency Settings</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm mb-2">Currency Name</label>
-              <Input
-                value={settings.currency.name}
-                onChange={(e) => setSettings({
-                  ...settings,
-                  currency: { ...settings.currency, name: e.target.value }
-                })}
-                placeholder="USD"
-              />
-            </div>
-            <div>
-              <label className="block text-sm mb-2">Currency Sign</label>
-              <Input
-                value={settings.currency.sign}
-                onChange={(e) => setSettings({
-                  ...settings,
-                  currency: { ...settings.currency, sign: e.target.value }
-                })}
-                placeholder="$"
-              />
-            </div>
-          </div>
-        </div>
+        <CurrencySettings 
+          settings={settings} 
+          onSettingsChange={setSettings} 
+        />
+        
+        <NotificationSettings 
+          settings={settings} 
+          onSettingsChange={setSettings} 
+        />
 
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold">Notification Settings</h2>
-          <div>
-            <label className="block text-sm mb-2">Notification Email</label>
-            <Input
-              type="email"
-              value={settings.email.notifications}
-              onChange={(e) => setSettings({
-                ...settings,
-                email: { ...settings.email, notifications: e.target.value }
-              })}
-              placeholder="notifications@example.com"
-            />
-          </div>
-        </div>
+        <HeroLinkSection 
+          settings={settings}
+          onSettingsChange={setSettings}
+          heroText={settings.text.hero}
+          onHeroTextChange={(value) => setSettings(prev => ({
+            ...prev,
+            text: { ...prev.text, hero: value }
+          }))}
+          heroLinkType={settings.herolink.productId ? 'product' : 'category'}
+          onHeroLinkTypeChange={(value) => {
+            const newHeroLink = value === 'product' 
+              ? { productId: '', category: '', subcategory: '', subsubcategory: '' }
+              : { productId: '', category: '', subcategory: '', subsubcategory: '' }
+            setSettings(prev => ({
+              ...prev,
+              herolink: newHeroLink
+            }))
+          }}
+          selectedHeroLink={settings.herolink}
+          onHeroLinkChange={(field, value) => setSettings(prev => ({
+            ...prev,
+            herolink: { ...prev.herolink, [field]: value }
+          }))}
+          products={products}
+          categories={categories}
+        />
+        
+        <ImageSettings 
+          settings={settings}
+          onSettingsChange={setSettings}
+          heroFiles={heroFiles}
+          bannerFile={bannerFile}
+          onHeroImagesChange={handleHeroImagesChange}
+          onBannerImageChange={handleBannerImageChange}
+        />
 
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold">Image Settings</h2>
-          <div className="space-y-6">
-            <div>
-              <label className="block text-sm mb-2">Hero Images (up to 5)</label>
-              <Input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handleHeroImagesChange}
-                className="mb-4"
-              />
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                {settings.images.hero.map((image, index) => (
-                  <div key={index} className="relative group">
-                    <img 
-                      src={`${image}`}
-                      alt={`Hero ${index + 1}`}
-                      className="w-full h-40 object-cover rounded-lg"
-                    />
-                    <button
-                      onClick={() => {
-                        const newHeroImages = settings.images.hero.filter((_, i) => i !== index)
-                        setSettings({
-                          ...settings,
-                          images: { ...settings.images, hero: newHeroImages }
-                        })
-                      }}
-                      className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full 
-                               opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm mb-2">Banner Image</label>
-              <Input
-                type="file"
-                accept="image/*"
-                onChange={(e) => setBannerFile(e.target.files[0])}
-              />
-              {settings.images.banner && (
-                <img 
-                  src={`${settings.images.banner}`}
-                  alt="Banner"
-                  className="mt-2 max-w-full h-auto"
-                />
-              )}
-            </div>
-          </div>
-        </div>
+        <BannerLinkSection 
+          settings={settings}
+          onSettingsChange={setSettings}
+          bannerText={bannerText}
+          onBannerTextChange={setBannerText}
+          linkType={linkType}
+          onLinkTypeChange={setLinkType}
+          selectedLink={selectedLink}
+          onLinkChange={(field, value) => setSelectedLink(prev => ({ ...prev, [field]: value }))}
+          products={products}
+          categories={categories}
+        />
+        
 
         <button
           type="submit"

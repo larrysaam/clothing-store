@@ -9,6 +9,7 @@ export const Picks = () => {
     // Use settings banner if available, otherwise use fallback
     const bannerImage = settings?.images?.banner || assets.Picks
 
+
     if (loading) {
         return (
             <div className='relative w-full h-[400px] sm:h-[500px] lg:h-[700px] bg-gray-200 animate-pulse'>
@@ -28,10 +29,16 @@ export const Picks = () => {
             <div className='absolute bottom-0 left-0 right-0 flex flex-col items-center text-center pb-8 sm:pb-16'>
                 <p className='text-white/90 text-xs sm:text-sm mb-1'>Athlete Picks</p>
                 <h2 className='text-white text-2xl sm:text-3xl lg:text-4xl font-bold mb-3 sm:mb-4'>
-                    Kylian Mbappé
+                    {settings?.text?.banner || 'Top Picks from Our Athletes'}
                 </h2>
                 <Link
-                    to='/collection'
+                    to={
+                        settings?.link?.productId
+                            ? `/product/${settings.link.productId}`
+                            : settings?.link?.category
+                                ? `/collection?category=${settings.link.category}`
+                                : '/shop'
+                    }
                     className='bg-white text-black px-6 sm:px-8 py-2 text-sm sm:text-base rounded-full 
                     hover:bg-gray-100 transition-colors'
                 >

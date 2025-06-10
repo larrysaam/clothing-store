@@ -36,57 +36,80 @@ const cleanupTempFiles = async (files) => {
 
 export const updateSettings = async (req, res) => {
   try {
-    const { currency, email } = req.body
-    const updatedImages = { hero: [], banner: '' }
+    let updateData = {}
 
-    // Handle hero images upload to cloudinary
-    if (req.files && req.files.hero) {
-      const heroImagesUrl = await Promise.all(
-        req.files.hero.map(async (file) => {
-          let result = await cloudinary.uploader.upload(file.path, {
-            resource_type: 'image',
-            folder: 'e-commerce/hero'
-          })
-          return result.secure_url
-        })
-      )
-      updatedImages.hero = heroImagesUrl
-    }
-
-    // Handle banner image upload
-    if (req.files && req.files.banner) {
-      const result = await cloudinary.uploader.upload(req.files.banner[0].path, {
-        resource_type: 'image',
-        folder: 'e-commerce/banner'
-      })
-      updatedImages.banner = result.secure_url
-    }
-
-    // Find existing settings without write concern
-    const currentSettings = await Setting.findOne()
-
-    // Update settings with proper write concern
-    const settings = await Setting.findOneAndUpdate(
-      {},
-      {
-        currency,
-        email,
-        images: {
-          hero: updatedImages.hero.length ? updatedImages.hero : currentSettings?.images?.hero || [],
-          banner: updatedImages.banner || currentSettings?.images?.banner || ''
+    // Convert form data to proper objects
+    const formData = Object.fromEntries(
+      Object.entries(req.body).map(([key, value]) => {
+        try {
+          return [key, JSON.parse(value)]
+        } catch {
+          return [key, value]
         }
-      },
-      { 
-        new: true, 
-        upsert: true,
-        writeConcern: { w: 1 } // Set write concern to primary only
-      }
+      })
     )
 
-    res.json({ success: true, settings })
+    // Handle basic text and currency settings
+    if (formData.currency) {
+      updateData.currency = {
+        name: formData.currency.name || '',
+        sign: formData.currency.sign || ''
+      }
+    }
+
+    if (formData.email) {
+      updateData['email.notifications'] = formData.email.notifications
+    }
+
+    if (formData.text) {
+      updateData.text = {
+        banner: formData.text.banner || '',
+        hero: formData.text.hero || ''
+      }
+    }
+
+    // Handle link data - already in JSON string format
+    if (formData.link) {
+      updateData.link = typeof formData.link === 'string' 
+        ? JSON.parse(formData.link)
+        : formData.link
+    }
+    
+    // Handle hero link data - already in JSON string format
+    if (formData.herolink) {
+      updateData.herolink = typeof formData.herolink === 'string'
+        ? JSON.parse(formData.herolink)
+        : formData.herolink
+    }
+
+    // Handle file uploads
+    if (req.files) {
+      if (req.files.banner) {
+        updateData['images.banner'] = req.files.banner[0].path
+      }
+      if (req.files.hero) {
+        updateData['images.hero'] = req.files.hero.map(file => file.path)
+      }
+    }
+
+    const settings = await Setting.findOneAndUpdate(
+      {},
+      { $set: updateData },
+      { new: true, upsert: true }
+    )
+
+    console.log('Settings updated:', settings)
+
+    res.json({
+      success: true,
+      settings
+    })
   } catch (error) {
-    console.error('Update settings error:', error)
-    res.status(500).json({ success: false, message: error.message })
+    console.error('Settings update error:', error)
+    res.status(500).json({
+      success: false,
+      message: error.message
+    })
   } finally {
     await cleanupTempFiles(req.files)
   }
@@ -101,8 +124,6 @@ export const getSettings = async (req, res) => {
         currency: { name: process.env.CURRENCY || 'EUR', sign: process.env.CURRENCY_SYMBOL || '€' },
         email: { notifications: 'notifications@example.com' },
         images: { hero: [], banner: '' }
-      }, { 
-        writeConcern: { w: 1 } // Set write concern to primary only
       })
     }
     
@@ -112,3 +133,48 @@ export const getSettings = async (req, res) => {
     res.status(500).json({ success: false, message: error.message })
   }
 }
+
+export const updateBannerLink = async (req, res) => {
+  try {
+    const { linkType, productId, category, subcategory, subsubcategory } = req.body;
+
+    // Prepare the link update object
+    const linkUpdate = {
+      link: {}
+    };
+
+    if (linkType === 'product') {
+      linkUpdate.link = {
+        productId,
+        category: null,
+        subcategory: null,
+        subsubcategory: null
+      };
+    } else {
+      linkUpdate.link = {
+        productId: null,
+        category,
+        subcategory,
+        subsubcategory
+      };
+    }
+
+    // Find and update settings
+    const settings = await Setting.findOneAndUpdate(
+      {},
+      linkUpdate,
+      { new: true, upsert: true }
+    );
+
+    res.json({
+      success: true,
+      settings
+    });
+  } catch (error) {
+    console.error('Banner link update error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update banner link'
+    });
+  }
+};

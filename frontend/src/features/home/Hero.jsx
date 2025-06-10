@@ -48,7 +48,7 @@ const Hero = () => {
       {/* Text and Buttons */}
       <div className='absolute bottom-20 left-10 text-white'>
         <h1 className='text-xl sm:text-5xl lg:text-7xl font-bold leading-tight'>
-          TURN OFFSEASON ON
+          {settings?.text?.hero || 'Summer Sale is Here!'}
         </h1>
         <p className='mt-4 text-lg sm:text-xl'>
           Get set for summer with gear that can take the heat.

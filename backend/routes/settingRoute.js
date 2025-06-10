@@ -1,6 +1,6 @@
 import express from 'express'
 import multer from 'multer'
-import { getSettings, updateSettings } from '../controllers/settingController.js'
+import { getSettings, updateSettings, updateBannerLink } from '../controllers/settingController.js'
 import adminAuth from '../middleware/adminAuth.js'
 
 const router = express.Router()
@@ -28,5 +28,6 @@ router.put('/',
   ]),
   updateSettings
 )
+router.put('/banner-link', adminAuth, updateBannerLink)
 
 export default router

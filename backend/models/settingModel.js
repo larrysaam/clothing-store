@@ -11,6 +11,22 @@ const settingSchema = new mongoose.Schema({
   images: {
     hero: [{ type: String }], // Changed to array
     banner: { type: String }
+  },
+  text: {
+    hero: { type: String, default: 'Welcome to our store!' }, // Default text for hero section
+    banner: { type: String, default: 'Welcome to our store!' } // Default text for banner
+  },
+  herolink: {
+    productId: { type: String }, // Default link for banner
+    category: { type: String },
+    subcategory: { type: String },  
+    subsubcategory: { type: String }
+  },
+  link: {
+    productId: { type: String }, // Default link for banner
+    category: { type: String },
+    subcategory: { type: String },  
+    subsubcategory: { type: String }
   }
 }, {
   timestamps: true
