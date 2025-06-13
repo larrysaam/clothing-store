@@ -32,8 +32,11 @@ const KIDS_SHOE_SIZES = Array.from({ length: 13 }, (_, i) => (i + 26).toString()
 const Add = ({token}) => {
   const pondRef = useRef()
   const [availableSubcategories, setAvailableSubcategories] = useState([])
+  const [availableSubSubcategories, setAvailableSubSubcategories] = useState([])
   const [isSubmitting, setIsSubmitting] = useState(false)
-  
+  const [categories, setCategories] = useState({})
+  const [sizeType, setSizeType] = useState('clothing') // Add this line
+
   // Update validation schema
   const validationSchema = z.object({
     images: z.any()
@@ -48,12 +51,15 @@ const Add = ({token}) => {
     price: z.coerce.number().positive({message : "Please enter product price"}),
     category: z.string().min(1, {message: "Category is required"}),
     subcategory: z.string().min(1, {message: "Subcategory is required"}),
+    subsubcategory: z.string().min(1, {message: "Second level category is required"}),
     sizes: z.array(z.object({
       size: z.string(),
       quantity: z.number().min(0, "Quantity cannot be negative")
     })).nonempty({ message: "Choose at least 1 size with quantity" }),
     bestseller: z.boolean(),
-    preorder: z.boolean()
+    preorder: z.boolean(),
+    label: z.string().optional(),
+    sizeType: z.string(),
   })
 
   const { control, handleSubmit, reset, watch, formState: { errors, isSubmitSuccessful } } = useForm({
@@ -65,9 +71,12 @@ const Add = ({token}) => {
       price: "",
       category: "",
       subcategory: "",
+      subsubcategory: "",
       sizes: [],
       bestseller: false,
       preorder: false,
+      label: "none", // Changed from empty string to "none"
+      sizeType: 'clothing',
     },
   })
  
@@ -88,11 +97,13 @@ const Add = ({token}) => {
       formData.append('name', values.name);
       formData.append('description', values.description);
       formData.append('price', values.price);
-      formData.append('category', values.category);
-      formData.append('subcategory', values.subcategory);
+      formData.append('category', values.category)
+      formData.append('subcategory', values.subcategory)
+      formData.append('subsubcategory', values.subsubcategory)
       formData.append('sizes', JSON.stringify(sortedSizes));
       formData.append('bestseller', values.bestseller);
       formData.append('preorder', values.preorder);
+      formData.append('label', values.label)
       for (let i=0; i < values.images.length; i++) {
         formData.append(`image${i+1}`, values.images[i].file);
       }
@@ -116,25 +127,57 @@ const Add = ({token}) => {
     }
   }
 
-  const fetchSubcategories = async (selectedCategory) => {
+  // Update the fetchCategories function
+  const fetchCategories = async () => {
     try {
       const response = await axios.get(`${backendUrl}/api/categories`, {
         headers: { token }
       })
       if (response.data.success) {
-        const { categories } = response.data
-        setAvailableSubcategories(categories[selectedCategory] || [])
+        // Convert array to object with names as keys
+        const categoriesObj = response.data.categories.reduce((acc, cat) => {
+          acc[cat.name] = {
+            ...cat,
+            subcategories: cat.subcategories || []
+          }
+          return acc
+        }, {})
+        setCategories(categoriesObj)
       }
     } catch (error) {
-      toast.error('Failed to fetch subcategories')
+      toast.error('Failed to fetch categories')
       console.error(error)
     }
   }
 
+  // Modify the existing useEffect to fetch categories on component mount
   useEffect(() => {
-    reset()
-    pondRef.current.removeFiles()
-  }, [isSubmitSuccessful])
+    fetchCategories()
+  }, [])
+
+  // Update the fetchSubcategories function
+  const fetchSubcategories = async (selectedCategory) => {
+    if (categories[selectedCategory]) {
+      setAvailableSubcategories(
+        categories[selectedCategory].subcategories.map(sub => sub.name)
+      )
+    }
+  }
+
+  // Update the fetchSubSubcategories function
+  const fetchSubSubcategories = async (category, subcategory) => {
+    if (categories[category]) {
+      const subCat = categories[category].subcategories
+        .find(sub => sub.name === subcategory)
+      if (subCat) {
+        setAvailableSubSubcategories(subCat.subcategories)
+      }
+    }
+  }
+
+  useEffect(() => {
+    fetchCategories()
+  }, [])
 
   useEffect(() => {
     const selectedCategory = watch('category')
@@ -146,7 +189,7 @@ const Add = ({token}) => {
   useEffect(() => {
     const subcategory = watch('subcategory')
     if (subcategory) {
-      // Reset sizes when subcategory changes
+      // Only reset sizes, don't automatically change size type
       reset({ ...watch(), sizes: [] })
     }
   }, [watch('subcategory')])
@@ -154,16 +197,14 @@ const Add = ({token}) => {
   const images = watch('images') || [];
 
   const getSizeOptions = () => {
-    const category = watch('category')
-    const subcategory = watch('subcategory')
+  const category = watch('category')
+  const sizeType = watch('sizeType')
 
-    if (subcategory?.toLowerCase().includes('shoes') || 
-        subcategory?.toLowerCase().includes('sneakers') || 
-        subcategory?.toLowerCase().includes('boots')) {
-      return category === 'Kids' ? KIDS_SHOE_SIZES : SHOE_SIZES
-    }
-    return CLOTHING_SIZES
+  if (sizeType === 'shoes') {
+    return category === 'Kids' ? KIDS_SHOE_SIZES : SHOE_SIZES
   }
+  return CLOTHING_SIZES
+}
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate className='flex flex-col w-full items-start gap-3'>
@@ -237,37 +278,38 @@ const Add = ({token}) => {
         <div>
           <p className='mb-2'>Product category</p>
           <Controller
-  name="category"
-  control={control}
-  render={({ field, ref }) => (
-    <Select 
-      {...field} 
-      ref={ref} 
-      error={errors.category?.message} 
-      className='border-2 border-gray-300 px-2' 
-      value={field.value || ""}
-      onValueChange={(value) => {
-        field.onChange(value)
-        // Reset subcategory when category changes
-        reset({ ...watch(), subcategory: '' })
-        // Fetch subcategories for selected category
-        fetchSubcategories(value)
-      }}
-    >
-      <SelectTrigger className="w-[140px]">
-        <SelectValue placeholder="Choose..." />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="Men">Men</SelectItem>
-        <SelectItem value="Women">Women</SelectItem>
-        <SelectItem value="Kids">Kids</SelectItem>
-      </SelectContent>
-    </Select>
-  )}
-/>
+              name="category"
+              control={control}
+              render={({ field, ref }) => (
+                <Select 
+                  {...field} 
+                  ref={ref} 
+                  error={errors.category?.message} 
+                  className='border-2 border-gray-300 px-2' 
+                  value={field.value || ""}
+                  onValueChange={(value) => {
+                    field.onChange(value)
+                    // Reset subcategory when category changes
+                    reset({ ...watch(), subcategory: '' })
+                    // Fetch subcategories for selected category
+                    fetchSubcategories(value)
+                  }}
+                >
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Choose..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {console.log(categories)}
+                    {Object.keys(categories).map((categoryName) => (
+                      <SelectItem key={categoryName} value={categoryName}>
+                        {categoryName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
         {errors.category && <p className="text-red-500 text-sm">{errors.category.message}</p>}
-
-
         </div>
 
         <div>
@@ -282,7 +324,13 @@ const Add = ({token}) => {
               error={errors.subcategory?.message} 
               className='w-full max-w-[500px] px-3 py-2' 
               value={field.value || ""}
-              onValueChange={(value) => field.onChange(value)}
+              onValueChange={(value) => {
+                field.onChange(value)
+                const category = watch('category')
+                if (category && value) {
+                  fetchSubSubcategories(category, value)
+                }
+              }}
               disabled={!watch('category') || availableSubcategories.length === 0}
             >
             <SelectTrigger className="w-[140px]">
@@ -300,6 +348,39 @@ const Add = ({token}) => {
         />
         {errors.subcategory && <p className="text-red-500 text-sm">{errors.subcategory.message}</p>}
         </div>
+
+             <div>
+                <p className='mb-2'>Second Level Category</p>
+                <Controller
+                  name="subsubcategory"
+                  control={control}
+                  render={({ field, ref }) => (
+                    <Select 
+                      {...field} 
+                      ref={ref} 
+                      error={errors.subsubcategory?.message} 
+                      className='w-full max-w-[500px] px-3 py-2' 
+                      value={field.value || ""}
+                      onValueChange={(value) => field.onChange(value)}
+                      disabled={!watch('subcategory') || availableSubSubcategories.length === 0}
+                    >
+                      <SelectTrigger className="w-[140px]">
+                        <SelectValue placeholder="Choose..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableSubSubcategories.map((subsubcategory) => (
+                          <SelectItem key={subsubcategory.name} value={subsubcategory.name}>
+                            {subsubcategory.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                {errors.subsubcategory && (
+                  <p className="text-red-500 text-sm">{errors.subsubcategory.message}</p>
+                )}
+              </div>
 
         <div>
           <p className='mb-2'>Product price</p> 
@@ -319,6 +400,45 @@ const Add = ({token}) => {
           />
           {errors.price && <p className="text-red-500 text-sm">{errors.price.message}</p>}
         </div>
+      </div>
+
+      <div className="mb-4">
+        <p className="mb-2">Size Type</p>
+        <Controller
+          name="sizeType"
+          control={control}
+          render={({ field }) => (
+            <ToggleGroup 
+              type="single" 
+              value={field.value}
+              onValueChange={(value) => {
+                if (value) {
+                  field.onChange(value)
+                  // Reset sizes when changing size type
+                  reset({ ...watch(), sizes: [] })
+                }
+              }}
+              className="flex gap-2"
+            >
+              <ToggleGroupItem 
+                value="clothing" 
+                className={`px-4 py-2 border rounded-md ${
+                  field.value === 'clothing' ? 'bg-black text-white' : ''
+                }`}
+              >
+                Clothing Sizes
+              </ToggleGroupItem>
+              <ToggleGroupItem 
+                value="shoes" 
+                className={`px-4 py-2 border rounded-md ${
+                  field.value === 'shoes' ? 'bg-black text-white' : ''
+                }`}
+              >
+                Shoe Sizes
+              </ToggleGroupItem>
+            </ToggleGroup>
+          )}
+        />
       </div>
 
       <div className='w-full'>
@@ -406,6 +526,32 @@ const Add = ({token}) => {
     )}
   />
 </div>
+
+      <div className='w-full'>
+        <p className='mb-2'>Product Label</p>
+        <Controller
+          name="label"
+          control={control}
+          render={({ field, ref }) => (
+            <Select 
+              {...field} 
+              ref={ref}
+              className='w-full max-w-[500px] px-3 py-2'
+              value={field.value || null}
+              onValueChange={(value) => field.onChange(value)}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Select a label..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No Label</SelectItem>
+                <SelectItem value="New model">New model</SelectItem>
+                <SelectItem value="Limited Edition">Limited Edition</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+        />
+      </div>
 
       <button 
         type='submit' 

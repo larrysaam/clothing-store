@@ -7,7 +7,8 @@ import {
   updatePreorderStatus,
   validateDeposit,
   deletePreorder,
-  userPreorders
+  userPreorders,
+  sendNotification
 } from '../controllers/preorderController.js'
 
 const router = express.Router()
@@ -18,6 +19,7 @@ router.get('/user', auth, getAllPreorders)
 router.post('/userpreorders', auth, userPreorders)
 router.put('/status', adminAuth, updatePreorderStatus)
 router.put('/deposit', adminAuth, validateDeposit)
+router.post('/notify', adminAuth, sendNotification)
 router.delete('/:id', auth, deletePreorder) // Added delete route
 
 export default router

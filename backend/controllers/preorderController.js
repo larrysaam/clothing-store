@@ -2,6 +2,7 @@ import PreOrder from '../models/preorderModel.js'
 import Product from '../models/productModel.js'
 import User from '../models/userModel.js'
 import { sendOrderNotification } from '../utils/emailService.js'
+import { sendEmail } from '../utils/email.js'
 
 export const getAllPreorders = async (req, res) => {
   try {
@@ -186,4 +187,40 @@ export const userPreorders = async (req, res) => {
           console.log(error)
           res.json({success: false, message: error.message})
       }
+}
+
+
+export const sendNotification = async (req, res) => {
+  try {
+    const { email, status, orderDetails } = req.body
+
+    console.log('Sending notification:', { email, status, orderDetails })
+
+    // Email template based on status
+    const subject = status === 'Confirmed' 
+      ? 'Your Preorder has been Confirmed!'
+      : 'Your Preorder has been Cancelled'
+
+    const message = status === 'Confirmed'
+      ? `Dear ${orderDetails.name},\n\n` +
+        `Great news! Your preorder #${orderDetails.orderId} has been confirmed.\n\n` +
+        `Order Details:\n` +
+        orderDetails.items.map(item => `- ${item.name} (${item.size}) x${item.quantity}`).join('\n') +
+        `\n\n` +
+        `Thank you for shopping with us!`
+      : `Dear ${orderDetails.name},\n\n` +
+        `We regret to inform you that your preorder #${orderDetails.orderId} has been cancelled.\n\n` +
+        `Order Details:\n` +
+        orderDetails.items.map(item => `- ${item.name} (${item.size}) x${item.quantity}`).join('\n') +
+        `\n\n` +
+        `If you have any questions, please contact our support team.\n\n` +
+        `We apologize for any inconvenience caused.`
+
+    // Send email (using your email service)
+    await sendEmail(email, subject, message)
+
+    res.json({ success: true, message: 'Notification sent successfully' })
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to send notification' })
+  }
 }

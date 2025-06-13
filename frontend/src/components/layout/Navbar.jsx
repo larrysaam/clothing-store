@@ -237,7 +237,7 @@ const Navbar = () => {
               )}
             </div>
             <button
-              onClick={() => (token ? navigate('/cart') : navigate('/login'))}
+              onClick={() => (navigate('/cart'))}
               className='relative transition-all duration-300 hover:scale-[125%]'
             >
               <img src={assets.cart} alt='cartIcon' className='w-5 min-w-5 ' />

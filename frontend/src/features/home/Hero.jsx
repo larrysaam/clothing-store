@@ -55,7 +55,13 @@ const Hero = () => {
         </p>
         <div className='mt-6 flex gap-4'>
           <Link
-            to='/collection'
+            to={
+                  settings?.herolink?.productId
+                      ? `/product/${settings.herolink.productId}`
+                      : settings?.herolink?.category
+                          ? `/collection?category=${settings.herolink.category}`
+                          : '/collection'
+              }
             className='px-6 py-3 bg-white text-black font-medium rounded-full hover:bg-gray-200 transition'
           >
             Shop

@@ -1,7 +1,7 @@
 import React, { useContext, useState } from 'react'
 import { ShopContext } from '@/context/ShopContext'
 import { toast } from "sonner"
-import { Link } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Input } from "@/components/ui/input"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -16,7 +16,9 @@ const loginSchema = z.object({
 })
 
 const Login = () => {
-  const { setToken, navigate, backendUrl } = useContext(ShopContext)
+  const { setToken, backendUrl } = useContext(ShopContext)
+  const navigate = useNavigate()
+  const location = useLocation()
   const [loginError, setLoginError] = useState("") // Store invalid credentials error
   const [highlightForgot, setHighlightForgot] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
@@ -46,7 +48,11 @@ const Login = () => {
       if (data.success) {
         setToken(data.token)
         localStorage.setItem('token', data.token)
-        navigate('/')
+        
+        // Redirect to previous page or home if no specific path
+        const returnTo = location.state?.from || '/'
+        navigate(returnTo)
+        
         toast.success("Login successful!")
         reset()
         setLoginError("")

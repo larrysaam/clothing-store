@@ -1,11 +1,23 @@
 import { v2 as cloudinary } from 'cloudinary'
 import productModel from '../models/productModel.js'
+import User from '../models/userModel.js'
 
 
 // function for add products
 const addProduct = async (req, res) => {
   try {
-    const { name, description, price, category, subcategory, sizes, bestseller, preorder } = req.body
+    const {
+      name,
+      description,
+      price,
+      category,
+      subcategory,
+      subsubcategory,
+      sizes,
+      bestseller,
+      preorder,
+      label
+    } = req.body
 
     // Check if req.files exists
     if (!req.files) {
@@ -62,10 +74,12 @@ const addProduct = async (req, res) => {
       price,
       category,
       subcategory,
+      subsubcategory,
       sizes: formattedSizes,
       bestseller: bestseller === 'true',
       preorder: preorder === 'true',
       image: imagesUrl,
+      label, // Add this line
       date: new Date()
     })
 
@@ -239,4 +253,198 @@ const updateQuantity = async (req, res) => {
   }
 }
 
-export { addProduct, listProducts, removeProduct, singleProduct, updateProduct, updateQuantity}
+
+const addReview = async (req, res) => {
+  try {
+    const { productId, rating, comment } = req.body
+    const userId = req.body.userId // Changed from req.user.id to req.user._id
+
+    // Validate inputs
+    if (!productId || !rating || !comment) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields'
+      })
+    }
+
+    // Find product first and check if exists
+    const product = await productModel.findById(productId)
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      })
+    }
+
+    // Get user details
+    const user = await User.findById(userId)
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      })
+    }
+
+    // Check if user has already reviewed
+    const existingReview = product.reviews?.find(
+      review => review.userId.toString() === userId.toString()
+    )
+
+    console.log('Existing review:', existingReview)
+
+    if (existingReview) {
+      return res.status(400).json({
+        success: false,
+        message: 'You have already reviewed this product'
+      })
+    }
+
+    // Initialize reviews array if it doesn't exist
+    if (!product.reviews) {
+      product.reviews = []
+    }
+
+    // Add review
+    product.reviews.push({
+      userId,
+      userName: `${user.name}`,
+      rating: Number(rating),
+      comment,
+      createdAt: new Date()
+    })
+
+    // Ensure calculateAverageRating method exists
+    if (typeof product.calculateAverageRating !== 'function') {
+      product.averageRating = product.reviews.reduce((acc, review) => acc + review.rating, 0) / product.reviews.length
+      product.totalReviews = product.reviews.length
+    } else {
+      product.calculateAverageRating()
+    }
+
+    // Save with proper error handling
+    await product.save()
+
+    res.json({
+      success: true,
+      message: 'Review added successfully',
+      averageRating: product.averageRating,
+      totalReviews: product.totalReviews
+    })
+
+  } catch (error) {
+    console.error('Add review error:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error adding review: ' + (error.message || 'Unknown error')
+    })
+  }
+}
+
+const getProductReviews = async (req, res) => {
+  try {
+    const { productId } = req.params
+    const product = await productModel.findById(productId)
+      .select('reviews averageRating totalReviews')
+      .sort({ 'reviews.createdAt': -1 })
+
+    res.json({
+      success: true,
+      reviews: product.reviews,
+      averageRating: product.averageRating,
+      totalReviews: product.totalReviews
+    })
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    })
+  }
+}
+
+
+const addUserPhoto = async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const userId = req.body.userId; // Get userId from auth middleware
+    
+    if (!req.file) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'No photo uploaded' 
+      });
+    }
+
+    // Upload to Cloudinary
+    const result = await cloudinary.uploader.upload(req.file.path, {
+      resource_type: 'image',
+      folder: 'user-photos' // Optional: organize uploads in folders
+    });
+
+    const product = await productModel.findById(productId);
+    if (!product) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Product not found' 
+      });
+    }
+
+    // Initialize userPhotos array if it doesn't exist
+    if (!product.userPhotos) {
+      product.userPhotos = [];
+    }
+
+    // Add new photo
+    product.userPhotos.push({
+      imageUrl: result.secure_url,
+      userId: userId,
+      uploadDate: new Date()
+    });
+
+    await product.save();
+
+    res.status(200).json({ 
+      success: true, 
+      message: 'Photo uploaded successfully',
+      userPhotos: product.userPhotos,
+      uploadedPhoto: result.secure_url 
+    });
+  } catch (error) {
+    console.error('Photo upload error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error adding photo', 
+      error: error.message 
+    });
+  }
+};
+
+const getUserPhotos = async (req, res) => {
+  try {
+    const { productId } = req.params;
+    
+    const product = await productModel.findById(productId)
+      .select('userPhotos')
+      .populate('userPhotos.userId', 'name'); // Optional: populate user details
+
+    if (!product) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Product not found' 
+      });
+    }
+
+    res.status(200).json({ 
+      success: true,
+      userPhotos: product.userPhotos || [] 
+    });
+  } catch (error) {
+    console.error('Fetch photos error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error fetching photos', 
+      error: error.message 
+    });
+  }
+};
+
+export { addProduct, listProducts, removeProduct, singleProduct, updateProduct, updateQuantity, addReview, getProductReviews, addUserPhoto, getUserPhotos }

@@ -11,6 +11,8 @@ import DashboardRouter from './routes/dashboardRoute.js'
 import CategoryRouter from './routes/categoryRoute.js'
 import PreorderRouter from './routes/preorderRoute.js'
 import settingRoute from './routes/settingRoute.js'
+import reviewRoutes from './routes/reviewRoutes.js'
+import photoRouter from './routes/PhotoRoute.js'
 
 //App config
 
@@ -36,6 +38,8 @@ app.use('/api/preorder', PreorderRouter)
 app.use('/api/admin', DashboardRouter)
 app.use('/api/categories', CategoryRouter)
 app.use('/api/settings', settingRoute)
+app.use('/api/reviews', reviewRoutes)
+app.use('/api/photos', photoRouter)
 
 app.get('/', (req, res) => {
     res.send("API working")

@@ -1,4 +1,14 @@
-import { addProduct, listProducts, removeProduct, singleProduct, updateProduct, updateQuantity } from '../controllers/productController.js'
+import { addProduct, 
+    listProducts, 
+    removeProduct, 
+    singleProduct, 
+    updateProduct, 
+    updateQuantity,
+    addReview, 
+    getProductReviews,
+    addUserPhoto, 
+    getUserPhotos
+} from '../controllers/productController.js'
 import express from 'express'
 import upload from '../middleware/multer.js';
 import adminAuth from '../middleware/adminAuth.js';
@@ -19,5 +29,16 @@ productRouter.post('/single', singleProduct);
 productRouter.get('/list', listProducts);
 productRouter.put('/quantity', adminAuth, updateQuantity)
 productRouter.put('/update/:id', authUser, updateProduct);
+
+
+productRouter.post('/reviews/add', authUser, addReview)
+productRouter.get('/product/:productId', getProductReviews)
+
+
+productRouter.get('/user/photo/:productId', getUserPhotos);
+productRouter.post('/user/photo/:productId', (req, res)=>{
+    console.log('test   .....')
+});
+
 
 export default productRouter

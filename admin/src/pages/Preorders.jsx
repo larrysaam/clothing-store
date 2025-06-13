@@ -32,6 +32,7 @@ const Preorders = ({token}) => {
 
   const statusHandler = async (value, preorderId) => {
     try {
+      // Update status
       const response = await axios.put(
         `${backendUrl}/api/preorder/status`,
         { preorderId, status: value },
@@ -39,6 +40,26 @@ const Preorders = ({token}) => {
       )
 
       if (response.data.success) {
+        // Get the preorder details for email
+        const preorder = preorders.find(p => p._id === preorderId)
+        
+        // Send email notification for Confirmed or Cancelled status
+        if ((value === 'Confirmed' || value === 'Cancelled') && preorder) {
+          await axios.post(
+            `${backendUrl}/api/preorder/notify`,
+            {
+              email: preorder.address.email,
+              status: value,
+              orderDetails: {
+                name: `${preorder.address.firstName} ${preorder.address.lastName}`,
+                items: preorder.items,
+                orderId: preorderId
+              }
+            },
+            { headers: { token } }
+          )
+        }
+
         toast.success(response.data.message)
         fetchPreorders()
       }
@@ -122,7 +143,7 @@ const Preorders = ({token}) => {
                       {preorder.payment ? 'Paid' : 'Pending'}
                     </span>
                   </p>
-                  {!preorder.payment && (
+                  {!preorder.payment && preorder.status !== 'Cancelled' && (
                     <button
                       onClick={() => depositHandler(preorder._id)}
                       className="w-full mt-2 px-3 py-2 bg-green-500 text-white rounded-md text-sm hover:bg-green-600 transition-colors"

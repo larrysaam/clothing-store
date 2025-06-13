@@ -129,9 +129,20 @@ const ShopContextProvider = (props) => {
     },
   });
 
-  const updateQuantity = (itemId, size, quantity) => {
-    updateQuantityMutation.mutate({ itemId, size, quantity });
-  };
+  const updateQuantity = (productId, size, quantity, newCartItems = null) => {
+    setCartItems(prev => {
+      if (newCartItems) {
+        return newCartItems
+      }
+      return {
+        ...prev,
+        [productId]: {
+          ...prev[productId],
+          [size]: quantity
+        }
+      }
+    })
+  }
 
   // Reset cart (e.g., after purchase)
   const resetCart = () => {

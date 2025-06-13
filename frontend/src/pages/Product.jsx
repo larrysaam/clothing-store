@@ -10,6 +10,8 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import ReviewSection from '@/components/ReviewSection'
+import PhotoUpload from '@/components/UserPhotos/PhotoUpload';
 
 const Product = () => {
 
@@ -133,22 +135,23 @@ const Product = () => {
   }
 
   return (
-    <div className='border-t-2 pt-10 animate-fade animate-duration-500 mx-4 sm:mx-2 sm:mt-0 md:mx-8 lg:mx-16 xl:mx-24'>
+    <div className='border-t-2 pt-6 sm:pt-10 animate-fade animate-duration-500 mx-2 sm:mx-4 md:mx-8 lg:mx-16 xl:mx-24'>
       <div>
         {/* ----------- Product Data ----------- */}
-        <div className='flex gap-12 sm:gap-20 flex-col sm:flex-row'>
+        <div className='flex gap-4 sm:gap-12 md:gap-20 flex-col sm:flex-row'>
           {/* ----------- Product Images ----------- */}
-          <div className='flex-1 flex flex-col-reverse gap-3 sm:flex-row'>
+          <div className='flex-1 flex flex-col-reverse gap-2 sm:gap-3 sm:flex-row'>
             {/* Side thumbnails */}
             <div className='flex sm:flex-col overflow-x-auto sm:overflow-y-auto 
-                justify-between sm:justify-start w-full sm:w-[15%] sm:max-h-[500px]'>
+                gap-2 sm:gap-0 justify-start sm:justify-start w-full sm:w-[15%] sm:max-h-[500px] 
+                scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent'>
               {productData?.image.map((item, index) => (
                 <img 
                   src={item} 
                   alt={`product-${index + 1}`} 
                   key={index} 
                   onClick={() => setImage(item)}
-                  className={`w-[24%] sm:w-full sm:h-[80px] object-cover mb-2 flex-shrink-0 
+                  className={`w-[20%] sm:w-full sm:h-[80px] object-cover mb-0 sm:mb-2 flex-shrink-0 
                     cursor-pointer rounded-md transition-opacity duration-200 
                     hover:opacity-80 ${image === item ? 'border-2 border-black' : ''}`}
                 />
@@ -156,7 +159,7 @@ const Product = () => {
             </div>
 
             {/* Main image */}
-            <div className='w-full sm:w-[85%] sm:h-[500px]'>
+            <div className='w-full sm:w-[85%] h-[300px] sm:h-[500px]'>
               <img 
                 src={image} 
                 className='w-full h-full object-cover rounded-md' 
@@ -164,80 +167,118 @@ const Product = () => {
               />
             </div>
           </div>
+
           {/* ----------- Product Info ----------- */}
-          <div className='flex-1'>
-            <h1 className='font-medium text-2xl mt-2'>{productData?.name}</h1>
-            <p className='mt-5 font-medium text-3xl'>{currency}{productData?.price}</p>
-            <p className='mt-5 text-gray-500 md:w-4/5'>{productData?.description}</p>
-            <div className='flex flex-col gap-4 my-8'>
+          <div className='flex-1 px-2 sm:px-0'>
+            <div className="flex flex-col gap-2">
+              <h1 className='font-medium text-xl sm:text-2xl mt-2'>{productData?.name}</h1>
+              {productData?.label && productData.label !== 'none' && (
+                <span className={`
+                  inline-block w-fit px-3 py-1 text-sm font-medium rounded-full
+                  ${productData.label === 'New model' 
+                    ? 'bg-blue-100 text-blue-800' 
+                    : 'bg-purple-100 text-purple-800'
+                  }
+                `}>
+                  {productData.label}
+                </span>
+              )}
+            </div>
+            <p className='mt-3 sm:mt-5 font-medium text-2xl sm:text-3xl'>{currency}{productData?.price}</p>
+            <p className='mt-3 sm:mt-5 text-gray-500 text-sm sm:text-base'>{productData?.description}</p>
+            
+            {/* Size Selection */}
+            <div className='flex flex-col gap-3 sm:gap-4 my-6 sm:my-8'>
               <p>Select size:</p>
-              <ToggleGroup className='flex justify-start gap-2' type="single">
+              <ToggleGroup className='flex flex-wrap justify-start gap-2' type="single">
                 {productData?.sizes.map((sizeObj) => (
                   <ToggleGroupItem
                     key={sizeObj.size}
                     value={sizeObj.size}
                     disabled={sizeObj.quantity === 0}
-                    className={`transition-all duration-200
+                    className={`text-sm sm:text-base px-3 py-1 sm:px-4 sm:py-2 transition-all duration-200
                       ${sizeObj.quantity === 0 ? 'opacity-50 cursor-not-allowed' : ''}
                       ${size === sizeObj.size ? 'bg-black text-white' : ''}`}
                     onClick={() => setSelectedSize(sizeObj.size)}
                   >
                     {sizeObj.size}
-                    <span className="text-xs ml-1">({sizeObj.quantity})</span>
                   </ToggleGroupItem>
                 ))}
               </ToggleGroup>
-              {selectedSize && availableQuantity > 0 && (
-                <p className="text-sm text-gray-600">
-                  {availableQuantity} items available
-                </p>
-              )}
             </div>
-            {/* ----------- Replace the existing buttons section ----------- */}
-            {productData?.preorder ? (
-              hasPreordered ? (
-                <button 
-                  disabled
-                  className='bg-gray-400 text-white px-8 py-3 text-sm rounded-full cursor-not-allowed'
-                >
-                  Preordered
-                </button>
+
+            {/* Action Buttons */}
+            <div className='w-full sm:w-auto fixed bottom-0 left-0 sm:relative p-4 sm:p-0 bg-white border-t sm:border-0'>
+              {productData?.preorder ? (
+                hasPreordered ? (
+                  <button 
+                    disabled
+                    className='w-full sm:w-auto bg-gray-400 text-white px-6 sm:px-8 py-3 text-sm rounded-full cursor-not-allowed'
+                  >
+                    Preordered
+                  </button>
+                ) : (
+                  <button 
+                    onClick={handlePreorder}
+                    disabled={!selectedSize || availableQuantity === 0}
+                    className={`w-full sm:w-auto bg-blue-600 text-white px-6 sm:px-8 py-3 text-sm rounded-full ${
+                      (!selectedSize || availableQuantity === 0) 
+                        ? 'opacity-50 cursor-not-allowed' 
+                        : 'active:bg-blue-700'
+                    }`}
+                  >
+                    Preorder Now
+                  </button>
+                )
               ) : (
                 <button 
-                  onClick={handlePreorder}
+                  onClick={handleAddToCart}
                   disabled={!selectedSize || availableQuantity === 0}
-                  className={`bg-blue-600 text-white px-8 py-3 text-sm rounded-full ${
-                    (!selectedSize || availableQuantity === 0) 
+                  className={`w-full sm:w-auto bg-black text-white px-6 sm:px-8 py-3 text-sm rounded-full ${
+                    !selectedSize || availableQuantity === 0 
                       ? 'opacity-50 cursor-not-allowed' 
-                      : 'active:bg-blue-700'
+                      : 'active:bg-gray-700'
                   }`}
                 >
-                  {availableQuantity === 0 ? 'OUT OF STOCK' : 'PREORDER NOW'}
+                  Add to Cart
                 </button>
-              )
-            ) : (
-              <button 
-                onClick={handleAddToCart}
-                disabled={!selectedSize || availableQuantity === 0}
-                className={`bg-black text-white px-8 py-3 text-sm rounded-full ${
-                  !selectedSize || availableQuantity === 0 
-                    ? 'opacity-50 cursor-not-allowed' 
-                    : 'active:bg-gray-700'
-                }`}
-              >
-                {availableQuantity === 0 ? 'OUT OF STOCK' : 'ADD TO CART'}
-              </button>
-            )}
-            <hr className='mt-8 sm:w-4/5' />
-            <div className='text-sm text-gray-500 mt-5 flex flex-col gap-1'>
-              <p>100% Original Product</p>
-              <p>Cash on delivery is available on this product</p>
-              <p>Easy return and exchange policy within 7 days</p>
+              )}
             </div>
           </div>
         </div>
+
+        {/* ----------- User Photos Section ----------- */}
+        <div className="mt-12 sm:mt-20 border-t pt-6 sm:pt-10">
+          <h2 className="text-xl sm:text-2xl font-medium mb-4 sm:mb-6">How Others Are Wearing It</h2>
+          <p className="text-sm sm:text-base text-gray-500 mb-4">
+            Upload your photo or mention @OurBrand on Instagram for a chance to be featured.
+          </p>
+          
+          <PhotoUpload productId={productId} onPhotoAdded={() => {
+            // Refresh photos
+          }} />
+
+          {/* Photo Gallery - Horizontal Scroll */}
+          <div className="mt-6 sm:mt-8 relative">
+            <div className="flex overflow-x-auto gap-4 pb-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent snap-x snap-mandatory">
+              {productData?.userPhotos?.map((photo, index) => (
+                <div 
+                  key={index} 
+                  className="flex-none w-[250px] sm:w-[300px] aspect-square rounded-lg overflow-hidden snap-center"
+                >
+                  <img 
+                    src={photo.imageUrl}
+                    alt={`User photo ${index + 1}`}
+                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        
         {/*  -----------Description and Tabs Section -----------*/}
-        <div className='mt-20'>
+        {/* <div className='mt-20'>
           <Tabs defaultValue="description" className="">
             <TabsList className='bg-white border text-sm h-12 p-[0.5px]'>
               <TabsTrigger className='px-4 py-3 data-[state=active]:border data-[state=active]:font-semibold'
@@ -270,7 +311,9 @@ const Product = () => {
               </TabsContent>
             </div>
           </Tabs>
+
         </div>
+         */}
         {/*  ----------- Related Products -----------*/}
         <RelatedProducts category={productData?.category || ''} subcategory={productData?.subcategory || ''} id={productId} />
       </div>
@@ -382,6 +425,8 @@ const Product = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      
     </div>
   )
 }
