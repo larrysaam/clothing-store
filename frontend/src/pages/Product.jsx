@@ -411,7 +411,7 @@ const Product = () => {
         </div>
         
         {/* -----------Description and Tabs Section -----------*/}
-        <div className='mt-20'>
+        {/* <div className='mt-20'>
           <Tabs defaultValue="description" className="">
             <TabsList className='bg-white border text-sm h-12 p-[0.5px]'>
               <TabsTrigger className='px-4 py-3 data-[state=active]:border data-[state=active]:font-semibold'
@@ -445,7 +445,7 @@ const Product = () => {
             </div>
           </Tabs>
 
-        </div>
+        </div> */}
         
         {/*  ----------- Related Products -----------*/}
         <RelatedProducts category={productData?.category || ''} subcategory={productData?.subcategory || ''} id={productId} />
