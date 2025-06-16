@@ -333,6 +333,7 @@ const Product = () => {
               </div>
             )}
 
+           
             {/* Action Buttons */}
             <div className='w-full sm:w-auto fixed bottom-0 left-0 sm:relative p-4 sm:p-0 bg-white border-t sm:border-0 z-10'>
               {productData?.preorder ? (
@@ -370,6 +371,12 @@ const Product = () => {
                 </button>
               )}
             </div>
+
+             {/* ----------- Review Section ----------- */}
+            <div className="my-6 sm:my-8">
+              <ReviewSection productId={productId} />
+            </div>
+
           </div>
         </div>
 
