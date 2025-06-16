@@ -67,14 +67,14 @@ const ShopContextProvider = (props) => {
 
   // Add item to cart
   const addToCartMutation = useMutation({
-    mutationFn: async ({ itemId, size }) => {
+    mutationFn: async ({ itemId, size, color }) => {
       await axios.post(
         `${backendUrl}/api/cart/add`,
-        { itemId, size },
+        { itemId, size, color },
         { headers: { token } }
       );
     },
-    onMutate: ({ itemId, size }) => {
+    onMutate: ({ itemId, size, color }) => {
       if (!size) {
         toast.error("Select Product Size");
         return;
@@ -82,7 +82,10 @@ const ShopContextProvider = (props) => {
 
       const updatedCart = structuredClone(cartItems);
       if (!updatedCart[itemId]) updatedCart[itemId] = {};
-      updatedCart[itemId][size] = (updatedCart[itemId][size] || 0) + 1;
+      
+      // Create a unique key combining size and color
+      const cartKey = color ? `${size}-${color}` : size;
+      updatedCart[itemId][cartKey] = (updatedCart[itemId][cartKey] || 0) + 1;
       setCartItems(updatedCart);
     },
     onError: (error) => toast.error(error.message),
@@ -91,31 +94,32 @@ const ShopContextProvider = (props) => {
     },
   });
 
-  const addToCart = (itemId, size) => {
+  const addToCart = (itemId, size, color) => {
     if (!size) {
       toast.error("Select Product Size");
       return;
     }
-    addToCartMutation.mutate({ itemId, size });
+    addToCartMutation.mutate({ itemId, size, color });
   };
 
   // Update cart item quantity
   const updateQuantityMutation = useMutation({
-    mutationFn: async ({ itemId, size, quantity }) => {
+    mutationFn: async ({ itemId, size, quantity, color }) => {
       await axios.post(
         `${backendUrl}/api/cart/update`,
-        { itemId, size, quantity },
+        { itemId, size, quantity, color },
         { headers: { token } }
       );
     },
-    onMutate: ({ itemId, size, quantity }) => {
+    onMutate: ({ itemId, size, quantity, color }) => {
       const updatedCart = structuredClone(cartItems);
 
       if (!updatedCart[itemId]) updatedCart[itemId] = {};
-      updatedCart[itemId][size] = quantity;
+      const cartKey = color ? `${size}-${color}` : size;
+      updatedCart[itemId][cartKey] = quantity;
 
       if (quantity === 0) {
-        delete updatedCart[itemId][size];
+        delete updatedCart[itemId][cartKey];
         if (Object.keys(updatedCart[itemId]).length === 0) {
           delete updatedCart[itemId];
         }
@@ -129,18 +133,27 @@ const ShopContextProvider = (props) => {
     },
   });
 
-  const updateQuantity = (productId, size, quantity, newCartItems = null) => {
+  const updateQuantity = (productId, cartKey, quantity, newCartItems = null) => {
     setCartItems(prev => {
       if (newCartItems) {
         return newCartItems
       }
-      return {
+      const updated = {
         ...prev,
         [productId]: {
           ...prev[productId],
-          [size]: quantity
+          [cartKey]: quantity
         }
       }
+      
+      if (quantity === 0) {
+        delete updated[productId][cartKey];
+        if (Object.keys(updated[productId]).length === 0) {
+          delete updated[productId];
+        }
+      }
+      
+      return updated;
     })
   }
 
@@ -153,20 +166,20 @@ const ShopContextProvider = (props) => {
   // Get total item count in cart
   const getCartCount = () => {
     return Object.values(cartItems).reduce(
-      (total, sizes) =>
-        total + Object.values(sizes).reduce((sum, qty) => sum + qty, 0),
+      (total, cartKeys) =>
+        total + Object.values(cartKeys).reduce((sum, qty) => sum + qty, 0),
       0
     );
   };
 
   // Get total price of items in cart
   const getCartAmount = () => {
-    return Object.entries(cartItems).reduce((totalAmount, [itemId, sizes]) => {
+    return Object.entries(cartItems).reduce((totalAmount, [itemId, cartKeys]) => {
       const itemInfo = products.find((product) => product._id === itemId);
       if (!itemInfo) return totalAmount;
       return (
         totalAmount +
-        Object.values(sizes).reduce(
+        Object.values(cartKeys).reduce(
           (sum, qty) => sum + itemInfo.price * qty,
           0
         )

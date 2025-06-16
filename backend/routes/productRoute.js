@@ -1,44 +1,42 @@
-import { addProduct, 
-    listProducts, 
-    removeProduct, 
-    singleProduct, 
-    updateProduct, 
-    updateQuantity,
-    addReview, 
-    getProductReviews,
-    addUserPhoto, 
-    getUserPhotos
-} from '../controllers/productController.js'
-import express from 'express'
+import express from 'express';
 import upload from '../middleware/multer.js';
 import adminAuth from '../middleware/adminAuth.js';
 import authUser from '../middleware/auth.js';
+import { 
+  addProduct, 
+  listProducts, 
+  removeProduct, 
+  singleProduct, 
+  updateProduct, 
+  updateQuantity,
+  addReview, 
+  getProductReviews,
+  addUserPhoto,
+  getProductById, 
+  getUserPhotos
+} from '../controllers/productController.js';
 
-const productRouter = express.Router();
+const router = express.Router()
+// Flexible file upload configuration that accepts any field names
+const imageUpload = upload.any(); // This accepts any field names
 
-productRouter.post('/add',adminAuth, upload.fields(
-    [
-        {name: 'image1', maxCount:1},
-        {name: 'image2', maxCount:1},
-        {name: 'image3', maxCount:1},
-        {name: 'image4', maxCount:1},
-    ]), addProduct);
-
-productRouter.post('/remove',adminAuth, removeProduct);
-productRouter.post('/single', singleProduct);
-productRouter.get('/list', listProducts);
-productRouter.put('/quantity', adminAuth, updateQuantity)
-productRouter.put('/update/:id', authUser, updateProduct);
+// Create product route with updated upload handlingd
+router.post('/add', adminAuth, imageUpload, addProduct)// Update product route with same upload handlingdl
+router.put('/update/:id', adminAuth, imageUpload, updateProduct)
+router.post('/remove',adminAuth, removeProduct);
+router.post('/single', singleProduct);
+router.get('/single/:id', getProductById); // New route to get product by ID
+router.get('/list', listProducts);
+router.put('/quantity', adminAuth, updateQuantity)
+router.put('/update/:id', authUser, updateProduct);
 
 
-productRouter.post('/reviews/add', authUser, addReview)
-productRouter.get('/product/:productId', getProductReviews)
+router.post('/reviews/add', authUser, addReview)
+router.get('/product/:productId', getProductReviews)
 
 
-productRouter.get('/user/photo/:productId', getUserPhotos);
-productRouter.post('/user/photo/:productId', (req, res)=>{
-    console.log('test   .....')
-});
+router.get('/user/photo/:productId', getUserPhotos);
+router.post('/user/photo/:productId', addUserPhoto);
 
 
-export default productRouter
+export default router;

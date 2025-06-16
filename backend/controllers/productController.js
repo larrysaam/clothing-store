@@ -1,7 +1,23 @@
 import { v2 as cloudinary } from 'cloudinary'
 import productModel from '../models/productModel.js'
 import User from '../models/userModel.js'
+import connectCloudinary from '../config/cloudinary.js'
 
+// Initialize cloudinary configuration
+connectCloudinary()
+
+// Helper function to validate color data
+const validateColorData = (colors) => {
+  if (!Array.isArray(colors) || colors.length === 0) {
+    throw new Error('At least one color variant is required');
+  }
+
+  colors.forEach(color => {
+    if (!color.colorName || !color.colorHex || !color.sizes) {
+      throw new Error('Each color must have a name, hex value, and sizes');
+    }
+  });
+};
 
 // function for add products
 const addProduct = async (req, res) => {
@@ -13,83 +29,124 @@ const addProduct = async (req, res) => {
       category,
       subcategory,
       subsubcategory,
-      sizes,
+      colors,
       bestseller,
       preorder,
       label
-    } = req.body
+    } = req.body;
 
-    // Check if req.files exists
-    if (!req.files) {
+    console.log("Received label value:", label, "Type:", typeof label);
+    console.log("Full request body:", req.body);
+
+    // Validate required fields
+    if (!name || !description || !price || !category || !subcategory || !subsubcategory) {
       return res.status(400).json({
         success: false,
-        message: 'No images uploaded'
-      })
+        message: 'Missing required fields: name, description, price, category, subcategory, subsubcategory'
+      });
     }
 
-    // Log the files object to debug
-    console.log('Uploaded files:', req.files)
+    // Validate price
+    if (isNaN(price) || price <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Price must be a positive number'
+      });
+    }
 
-    // Validate sizes and quantities
-    const formattedSizes = JSON.parse(sizes).map(size => ({
-      size: size.size,
-      quantity: parseInt(size.quantity)
-    }))
-
-    // Extract images from request files
-    const image1 = req.files?.image1?.[0]
-    const image2 = req.files?.image2?.[0]
-    const image3 = req.files?.image3?.[0]
-    const image4 = req.files?.image4?.[0]
-
-    // Filter out undefined images and upload to cloudinary
-    const images = [image1, image2, image3, image4].filter(Boolean)
+    // Parse colors data from JSON string if needed
+    let colorData;
+    try {
+      colorData = typeof colors === 'string' ? JSON.parse(colors) : colors;
+    } catch (parseError) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid colors data format'
+      });
+    }
     
-    if (images.length === 0) {
+    console.log("colorData: ", colorData);
+
+    // Validate colors data
+    validateColorData(colorData);
+
+    // Handle main product images
+    const mainImageUrls = [];
+    const mainImageFiles = req.files ? req.files.filter(file => file.fieldname === 'image') : [];
+    console.log("main image: ", mainImageFiles);
+
+    if (mainImageFiles.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'At least one image is required'
-      })
+        message: 'At least one main product image is required'
+      });
     }
 
-    // Upload images to cloudinary
-    const imagesUrl = await Promise.all(
-      images.map(async (item) => {
+    for (const file of mainImageFiles) {
+      try {
+        const result = await cloudinary.uploader.upload(file.path);
+        mainImageUrls.push(result.secure_url);
+      } catch (uploadError) {
+        console.error('Image upload error:', uploadError);
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to upload product image'
+        });
+      }
+    }
+
+    // Handle color variant images
+    const processedColors = await Promise.all(colorData.map(async (color, index) => {
+      const colorImages = [];
+      const colorImageFiles = req.files ? req.files.filter(file => file.fieldname === `colorImages_${index}`) : [];
+
+      console.log("color image: ", colorImageFiles);
+      
+      for (const file of colorImageFiles) {
         try {
-          const result = await cloudinary.uploader.upload(item.path, {
-            resource_type: 'image'
-          })
-          return result.secure_url
-        } catch (error) {
-          console.error('Cloudinary upload error:', error)
-          throw new Error('Failed to upload image')
+          const result = await cloudinary.uploader.upload(file.path);
+          colorImages.push(result.secure_url);
+        } catch (uploadError) {
+          console.error('Color image upload error:', uploadError);
+          // Continue with other images instead of failing completely
         }
-      })
-    )
+      }
+
+      return {
+        ...color,
+        colorImages
+      };
+    }));
+
+    // Normalize label value - convert 'none' to empty string
+    const normalizedLabel = (label === 'none' || !label) ? '' : label;
 
     // Create new product
     const newProduct = new productModel({
-      name,
-      description,
-      price,
-      category,
-      subcategory,
-      subsubcategory,
-      sizes: formattedSizes,
-      bestseller: bestseller === 'true',
-      preorder: preorder === 'true',
-      image: imagesUrl,
-      label, // Add this line
+      name: name.trim(),
+      description: description.trim(),
+      price: Number(price),
+      image: mainImageUrls,
+      category: category.trim(),
+      subcategory: subcategory.trim(),
+      subsubcategory: subsubcategory.trim(),
+      colors: processedColors,
+      bestseller: Boolean(bestseller),
+      preorder: Boolean(preorder),
+      label: normalizedLabel,
       date: new Date()
-    })
+    });
+
+    console.log("New product: ", newProduct);
 
     // Save product
-    await newProduct.save({ writeConcern: { w: 1, wtimeout: 5000 }})
+    const savedProduct = await newProduct.save();
 
     res.json({
       success: true,
-      message: 'Product added successfully'
-    })
+      message: 'Product added successfully',
+      productId: savedProduct._id
+    });
   } catch (error) {
     console.error('Add product error:', error)
     res.status(500).json({
@@ -102,47 +159,58 @@ const addProduct = async (req, res) => {
 // function for list products
 const listProducts = async (req,res) => {
     try { 
-        const products = await productModel.find({});
+        const products = await productModel.find({}).sort({ date: -1 });
+        
         res.json({
             success: true,
-            products
-        })
+            products: products || []
+        });
     } catch (error) {
-        console.log(error)
+        console.error('List products error:', error);
         res.json({
             success: false,
             message: error.message
-        })
+        });
     }
-
 }
 
 // function for removing product
 const removeProduct = async (req,res) => {
     try {
+        const { id } = req.body;
         
-        const remove = await productModel.findByIdAndDelete({_id : req.body.id},
-          { writeConcern: { 
-            w: 1,
-            wtimeout: 5000 
-          }})
-        if (!remove) {
-          return res.json({
-            success: false,
-            message: "Could not find a product to delete!"
-          })
+        if (!id) {
+            return res.json({
+                success: false,
+                message: "Product ID is required"
+            });
         }
+        
+        const remove = await productModel.findByIdAndDelete(id, {
+            writeConcern: { 
+                w: 1,
+                wtimeout: 5000 
+            }
+        });
+        
+        if (!remove) {
+            return res.json({
+                success: false,
+                message: "Could not find a product to delete!"
+            });
+        }
+        
         res.json({
             success: true,
             message: "Product Deleted"
-        })
+        });
 
     } catch (error) {
-        console.log(error)
+        console.error('Remove product error:', error);
         res.json({
             success: false,
             message: error.message
-        })
+        });
     }
 }
 
@@ -150,52 +218,136 @@ const removeProduct = async (req,res) => {
 const singleProduct = async (req,res) => {
     try {
         const { productId } = req.body;
-        const product = await productModel.findById(productId)
+        
+        if (!productId) {
+            return res.json({
+                success: false,
+                message: "Product ID is required"
+            });
+        }
+        
+        const product = await productModel.findById(productId);
+        
+        if (!product) {
+            return res.json({
+                success: false,
+                message: "Product not found"
+            });
+        }
 
         res.json({
             success: true,
             product
-        })
+        });
     } catch (error) {
-        console.log(error)
+        console.error('Single product error:', error);
         res.json({
             success: false,
             message: error.message
-        })
+        });
     }
 }
+
+// function to get a single product by ID (typically for GET requests)
+const getProductById = async (req, res) => {
+    try {
+        const { id } = req.params; // Get ID from URL parameters
+
+        if (!id) {
+            return res.status(400).json({
+                success: false,
+                message: "Product ID is required in the URL path"
+            });
+        }
+
+        const product = await productModel.findById(id);
+
+        if (!product) {
+            return res.status(404).json({ // Use 404 for not found
+                success: false,
+                message: "Product not found"
+            });
+        }
+
+        res.json({
+            success: true,
+            product
+        });
+    } catch (error) {
+        console.error('Get product by ID error:', error);
+        res.status(500).json({ // Use 500 for server errors
+            success: false,
+            message: error.message
+        });
+    }
+};
 
 const updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    const updates = req.body;
+    const updates = { ...req.body };
 
-    // Validate the updates
-    if (!updates) {
-      return res.status(400).json({
-        success: false,
-        message: 'No update data provided'
-      });
+    console.log('Received updates:', updates)
+
+    if (updates.colors) {
+      let parsedColorsArray;
+      if (typeof updates.colors === 'string') {
+        try {
+          parsedColorsArray = JSON.parse(updates.colors);
+        } catch (e) {
+          return res.status(400).json({ success: false, message: "Invalid JSON format for colors field." });
+        }
+      } else {
+        parsedColorsArray = updates.colors;
+      }
+
+      validateColorData(parsedColorsArray);
+
+      // Ensure updates.colors is the parsed array of objects
+      updates.colors = parsedColorsArray;
+
+      // Handle new color images if any
+      if (req.files && req.files.length > 0) {
+        updates.colors = await Promise.all(updates.colors.map(async (color, index) => {
+          const colorImages = [...(color.colorImages || [])];
+          const newColorImages = req.files.filter(file => file.fieldname === `colorImages_${index}`);
+
+          for (const file of newColorImages) {
+            const result = await cloudinary.uploader.upload(file.path);
+            colorImages.push(result.secure_url);
+          }
+
+          return {
+            ...color,
+            colorImages: colorImages.slice(0, 4) // Ensure max 4 images
+          };
+        }));
+      }
     }
 
-    // Find and update the product
-    const updatedProduct = await productModel.findByIdAndUpdate(
+    // Handle main image updates if any
+    const mainImageFiles = req.files ? req.files.filter(file => file.fieldname === 'image') : [];
+    if (mainImageFiles.length > 0) {
+      const mainImageUrls = [];
+      for (const file of mainImageFiles) {
+        const result = await cloudinary.uploader.upload(file.path);
+        mainImageUrls.push(result.secure_url);
+      }
+      updates.image = mainImageUrls;
+    }
+
+    // Normalize label value if it exists
+    if (updates.label !== undefined) {
+      updates.label = (updates.label === 'none' || !updates.label) ? '' : updates.label;
+    }
+
+    const product = await productModel.findByIdAndUpdate(
       id,
-      {
-        $set: {
-          name: updates.name,
-          description: updates.description,
-          category: updates.category,
-          subcategory: updates.subcategory,
-          price: updates.price,
-          sizes: updates.sizes,
-          image: updates.image
-        }
-      },
-      { new: true }
+      updates,
+      { new: true, runValidators: true }
     );
 
-    if (!updatedProduct) {
+    if (!product) {
       return res.status(404).json({
         success: false,
         message: 'Product not found'
@@ -205,11 +357,11 @@ const updateProduct = async (req, res) => {
     res.json({
       success: true,
       message: 'Product updated successfully',
-      product: updatedProduct
+      product
     });
+
   } catch (error) {
-    console.error('Update product error:', error);
-    res.status(500).json({
+    res.status(400).json({
       success: false,
       message: error.message
     });
@@ -219,7 +371,7 @@ const updateProduct = async (req, res) => {
 // Add quantity update endpoint
 const updateQuantity = async (req, res) => {
   try {
-    const { productId, size, quantity } = req.body
+    const { productId, size, quantity, color } = req.body
 
     const product = await productModel.findById(productId)
     if (!product) {
@@ -229,15 +381,31 @@ const updateQuantity = async (req, res) => {
       })
     }
 
-    const sizeIndex = product.sizes.findIndex(s => s.size === size)
-    if (sizeIndex === -1) {
+    // Find the color first, then the size within that color
+    if (!color) {
       return res.status(400).json({
         success: false,
-        message: 'Size not found'
+        message: 'Color is required'
       })
     }
 
-    product.sizes[sizeIndex].quantity = quantity
+    const colorIndex = product.colors.findIndex(c => c.colorHex === color)
+    if (colorIndex === -1) {
+      return res.status(400).json({
+        success: false,
+        message: 'Color not found'
+      })
+    }
+
+    const sizeIndex = product.colors[colorIndex].sizes.findIndex(s => s.size === size)
+    if (sizeIndex === -1) {
+      return res.status(400).json({
+        success: false,
+        message: 'Size not found for this color'
+      })
+    }
+
+    product.colors[colorIndex].sizes[sizeIndex].quantity = quantity
     await product.save()
 
     res.json({
@@ -447,4 +615,4 @@ const getUserPhotos = async (req, res) => {
   }
 };
 
-export { addProduct, listProducts, removeProduct, singleProduct, updateProduct, updateQuantity, addReview, getProductReviews, addUserPhoto, getUserPhotos }
+export { addProduct, listProducts, removeProduct, singleProduct, getProductById, updateProduct, updateQuantity, addReview, getProductReviews, addUserPhoto, getUserPhotos }

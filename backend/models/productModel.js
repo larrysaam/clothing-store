@@ -1,6 +1,10 @@
 import mongoose from "mongoose";
-
 const { Schema } = mongoose;
+
+// Array limit validator function
+const arrayLimit = (val) => {
+  return val.length <= 4;
+};
 
 const userPhotoSchema = new Schema({
   imageUrl: { type: String, required: true },
@@ -8,25 +12,47 @@ const userPhotoSchema = new Schema({
   uploadDate: { type: Date, default: Date.now }
 });
 
+// Define size schema without _id
+const sizeSchema = new Schema({
+  size: { 
+    type: String, 
+    required: true 
+  },
+  quantity: { 
+    type: Number, 
+    required: true, 
+    default: 0 
+  }
+}, { _id: false });
+
+// Define color variant schema
+const colorVariantSchema = new Schema({
+  colorName: { 
+    type: String, 
+    required: true 
+  },
+  colorHex: { 
+    type: String, 
+    required: true,
+    match: [/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, 'Please enter a valid hex color'] 
+  },
+  colorImages: { type: Array, required: true},
+  sizes: [sizeSchema]
+}, { _id: false });
+
 const productSchema = new Schema({
     name: { type: String, required: true },
     description: { type: String, required: true },
     price: { type: Number, required: true },
-    image: { type: Array, required: true },
+    image: { type: Array, required: true }, // Keep main product images
     category: { type: String, required: true },
     subcategory: { type: String, required: true },
     subsubcategory: { type: String, required: true },
-    sizes: [{
-      size: {
-        type: String,
-        required: true
-      },
-      quantity: {
-        type: Number,
-        required: true,
-        default: 0
-      }
-    }],
+    colors: {
+      type: [colorVariantSchema],
+      required: true,
+      validate: [arr => arr.length > 0, 'At least one color variant is required']
+    },
     bestseller: { type: Boolean },
     date: {
       type: Date,
@@ -76,8 +102,7 @@ const productSchema = new Schema({
       default: 0
     },
     userPhotos: [userPhotoSchema]
-  })
-    
+});
 
 // Add method to calculate average rating
 productSchema.methods.calculateAverageRating = function() {
@@ -90,5 +115,6 @@ productSchema.methods.calculateAverageRating = function() {
     this.totalReviews = this.reviews.length;
   }
 }
+
 
 export default mongoose.model('Product', productSchema)

@@ -17,18 +17,26 @@ const placeOrder = async (req, res) => {
   try {
     const { userId, items, amount, address } = req.body;
 
+    console.log('Placing COD order with items:', items);
+    
+    // Validate and process items to ensure they have proper color/size/quantity info
+    const processedItems = await validateAndProcessOrderItems(items);
+    
     // Update product quantities first
-    await updateProductQuantities(items);
+    await updateProductQuantities(processedItems);
 
     const orderData = {
       userId,
-      items,
+      items: processedItems,
       address,
       amount,
       paymentMethod: "COD",
       payment: false,
       date: Date.now()
     };
+
+    console.log('Order data:', orderData);
+    console.log("Processed items: ", processedItems);
 
     const newOrder = new orderModel(orderData);
     await newOrder.save();
@@ -61,9 +69,15 @@ const placeOrderStripe = async  (req,res) => {
     try {
         const { userId, items, amount, address, payment } = req.body;
         const { origin } = req.headers;
+        
+        console.log('Placing Stripe order with items:', items);
+        
+        // Validate and process items to ensure they have proper color/size/quantity info
+        const processedItems = await validateAndProcessOrderItems(items);
+        
         const orderData = {
             userId,
-            items,
+            items: processedItems,
             address,
             amount,
             paymentMethod: "Stripe",
@@ -74,11 +88,12 @@ const placeOrderStripe = async  (req,res) => {
         const newOrder = new orderModel(orderData)
         await newOrder.save()
 
-        const line_items = items.map((item)=> ({
+        const line_items = processedItems.map((item)=> ({
             price_data: {
                 currency: currency,
                 product_data: {
-                    name: item.name,
+                    name: `${item.name}${item.color ? ` - ${item.color}` : ''} (Size: ${item.size})`,
+                    description: `Color: ${item.color || 'N/A'}, Size: ${item.size}, Quantity: ${item.quantity}`
                 },
                 unit_amount: item.price * 100
             },
@@ -253,6 +268,8 @@ const createOrder = async (req, res) => {
     const { address, items, amount, paymentIntentId } = req.body;
     const userId = req.user._id;
 
+    console.log('Creating order with items:', items);
+
     // Verify payment intent status
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
     
@@ -260,10 +277,16 @@ const createOrder = async (req, res) => {
       throw new Error('Payment has not been completed');
     }
 
+    // Validate and process items
+    const processedItems = await validateAndProcessOrderItems(items);
+
+    // Update product quantities
+    await updateProductQuantities(processedItems);
+
     // Create order
     const order = new orderModel({
       userId,
-      items,
+      items: processedItems,
       address,
       amount,
       paymentMethod: 'stripe',
@@ -304,8 +327,13 @@ const createCheckoutSession = async (req, res) => {
     const { items, address } = req.body;
     const userId = req.body.userId; // Get userId from auth middleware
 
+    console.log('Creating checkout session with items:', items);
+    
+    // Validate and process items to ensure they have proper color/size/quantity info
+    const processedItems = await validateAndProcessOrderItems(items);
+
     // Create line items for Stripe with proper image handling
-    const lineItems = items.map(item => {
+    const lineItems = processedItems.map(item => {
       // Ensure image is a valid URL string and wrap it in an array
       const imageUrl = Array.isArray(item.image) ? item.image[0] : item.image;
       
@@ -313,8 +341,8 @@ const createCheckoutSession = async (req, res) => {
         price_data: {
           currency: process.env.CURRENCY || 'usd',
           product_data: {
-            name: item.name,
-            description: item.description || 'No description provided',
+            name: `${item.name}${item.color ? ` - ${item.color}` : ''} (Size: ${item.size})`,
+            description: `Color: ${item.color || 'N/A'}, Size: ${item.size}, Quantity: ${item.quantity}`,
             images: imageUrl ? [imageUrl] : [], // Must be an array with valid URLs
           },
           unit_amount: Math.round(item.price * 100),
@@ -338,9 +366,9 @@ const createCheckoutSession = async (req, res) => {
 
     const order = new orderModel({
       userId,
-      items,
+      items: processedItems,
       address,
-      amount: items.reduce((acc, item) => acc + (item.price * item.quantity), 0) + 10,
+      amount: processedItems.reduce((acc, item) => acc + (item.price * item.quantity), 0) + 10,
       paymentMethod: 'stripe',
       status: 'pending',
       payment: false,
@@ -451,6 +479,116 @@ const verifyCheckoutSession = async (req, res) => {
   }
 };
 
+// Helper function to extract size and color from combined string
+const extractSizeAndColor = (sizeColorString) => {
+  if (!sizeColorString || typeof sizeColorString !== 'string') {
+    return { size: null, color: null };
+  }
+  
+  // Check if the string contains a hyphen separator
+  if (sizeColorString.includes('-')) {
+    const parts = sizeColorString.split('-');
+    if (parts.length >= 2) {
+      const size = parts[0].trim();
+      const color = parts.slice(1).join('-').trim(); // Handle colors with hyphens like "Light-Blue"
+      return { size, color };
+    }
+  }
+  
+  // If no hyphen found, treat the entire string as size (backward compatibility)
+  return { size: sizeColorString.trim(), color: null };
+};
+
+// Helper function to validate and process order items
+const validateAndProcessOrderItems = async (items) => {
+  console.log('Validating and processing order items:', items);
+  
+  const processedItems = [];
+  
+  for (const item of items) {
+    // Validate required fields
+    if (!item._id || !item.quantity) {
+      throw new Error(`Invalid item data: missing required fields (id, quantity)`);
+    }
+    
+    // Extract size and color from the size field if it contains both
+    let extractedSize = item.size;
+    let extractedColor = item.color;
+    
+    // If size contains a hyphen, extract both size and color
+    if (item.size && item.size.includes('-')) {
+      const extracted = extractSizeAndColor(item.size);
+      extractedSize = extracted.size;
+      extractedColor = extracted.color;
+      console.log(`Extracted from "${item.size}": Size="${extractedSize}", Color="${extractedColor}"`);
+    }
+    
+    // Validate that we have a size after extraction
+    if (!extractedSize) {
+      throw new Error(`Invalid item data: missing size information`);
+    }
+    
+    // Get product details
+    const product = await productModel.findById(item._id);
+    if (!product) {
+      throw new Error(`Product ${item._id} not found`);
+    }
+    
+    // Validate color and size combination if color is provided
+    console.log("Extracted color: ", extractedColor)
+    let colorData = null;
+    
+    if (extractedColor) {
+      // First try to find by hex code (for cart items)
+      colorData = product.colors?.find(c => c.colorHex === extractedColor);
+      
+      // If not found by hex, try to find by color name (for direct orders)
+      if (!colorData) {
+        colorData = product.colors?.find(c => c.colorName === extractedColor);
+      }
+      
+      if (!colorData) {
+        throw new Error(`Color ${extractedColor} not found for product ${product.name}`);
+      }
+      
+      const sizeData = colorData.sizes?.find(s => s.size === extractedSize);
+      if (!sizeData) {
+        throw new Error(`Size ${extractedSize} not available for color ${colorData.colorName} in product ${product.name}`);
+      }
+      
+      // Check stock availability
+      if (sizeData.quantity < item.quantity) {
+        throw new Error(`Insufficient stock for ${product.name} - ${colorData.colorName} (Size: ${extractedSize}). Available: ${sizeData.quantity}, Requested: ${item.quantity}`);
+      }
+    } else {
+      // If no color, check if product has color variants and validate accordingly
+      if (product.colors && product.colors.length > 0) {
+        // For products with colors, we need a color specified
+        throw new Error(`Product ${product.name} requires color selection`);
+      }
+    }
+    
+    // Create processed item with all necessary information
+    const processedItem = {
+      _id: item._id,
+      name: item.name || product.name,
+      price: item.price || product.price,
+      size: extractedSize,
+      color: colorData ? colorData.colorName : extractedColor, // Store color name for consistency
+      colorHex: colorData ? colorData.colorHex : null, // Store hex code for reference
+      quantity: item.quantity,
+      image: item.image || product.image,
+      description: item.description || product.description,
+      originalSizeString: item.size // Keep original for reference
+    };
+    
+    processedItems.push(processedItem);
+    console.log(`Processed item: ${processedItem.name} - Color: ${processedItem.color}, Size: ${processedItem.size}, Quantity: ${processedItem.quantity}`);
+  }
+  
+  return processedItems;
+};
+
 // Add this helper function
 const updateProductQuantities = async (items) => {
   console.log('Updating product quantities for items:', items);
@@ -462,25 +600,57 @@ const updateProductQuantities = async (items) => {
       }
 
       console.log('Product found:', product.name);
+      console.log('Item details:', { size: item.size, color: item.color, quantity: item.quantity, originalSizeString: item.originalSizeString });
 
-      // Find the size object in the sizes array
-      const sizeObj = product.sizes.find(s => s.size === item.size);
+      // Find the color and size combination
+      let sizeObj = null;
       
-      if (!sizeObj) {
-        throw new Error(`Size ${item.size} not found for product ${product.name}`);
+      if (item.color && product.colors) {
+        // Find the color first - try by color name first, then by hex code
+        let colorData = product.colors.find(c => c.colorName === item.color);
+        
+        // If not found by name, try by hex code (for backward compatibility)
+        if (!colorData && item.colorHex) {
+          colorData = product.colors.find(c => c.colorHex === item.colorHex);
+        }
+        
+        // If still not found, try treating item.color as hex code
+        if (!colorData) {
+          colorData = product.colors.find(c => c.colorHex === item.color);
+        }
+        
+        if (!colorData) {
+          throw new Error(`Color ${item.color} not found for product ${product.name}`);
+        }
+        
+        // Find the size within that color
+        sizeObj = colorData.sizes?.find(s => s.size === item.size);
+        if (!sizeObj) {
+          throw new Error(`Size ${item.size} not found for color ${colorData.colorName} in product ${product.name}`);
+        }
+      } else {
+        // Fallback to product-level sizes (for backward compatibility)
+        if (product.sizes) {
+          sizeObj = product.sizes.find(s => s.size === item.size);
+        }
+        
+        if (!sizeObj) {
+          throw new Error(`Size ${item.size} not found for product ${product.name}`);
+        }
       }
 
       // Check if quantity is available
       if (sizeObj.quantity < item.quantity) {
-        throw new Error(`Insufficient quantity for ${product.name} in size ${item.size}`);
+        throw new Error(`Insufficient quantity for ${product.name} in size ${item.size}${item.color ? ` and color ${item.color}` : ''}. Available: ${sizeObj.quantity}, Requested: ${item.quantity}`);
       }
 
       // Update the quantity in the size object
+      const previousQuantity = sizeObj.quantity;
       sizeObj.quantity -= item.quantity;
 
       // Save the updated product
       await product.save();
-      console.log(`Updated quantity for ${product.name} size ${item.size}: ${sizeObj.quantity}`);
+      console.log(`Updated quantity for ${product.name} size ${item.size}${item.color ? ` color ${item.color}` : ''}: ${previousQuantity} -> ${sizeObj.quantity} (reduced by ${item.quantity})`);
     }
   } catch (error) {
     console.error('Error updating quantities:', error);

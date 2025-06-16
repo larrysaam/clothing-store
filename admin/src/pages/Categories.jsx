@@ -109,21 +109,21 @@ const Categories = ({ token }) => {
 
   // Render category tree
   const renderCategories = (items, level = 0, path = []) => {
-    return items.map((item) => (
-      <div key={item.name} className={`ml-${level * 4}`}>
-        <div className="flex items-center gap-2 py-2">
-          <span className="font-medium">{item.name}</span>
+    return items.map((item, index) => (
+      <div key={`${item.name}-${index}`} className={`pl-${level * 2} sm:pl-${level * 4}`}>
+        <div className="flex items-center gap-2 py-2 border-b border-gray-100 last:border-b-0">
+          <span className="font-medium text-sm sm:text-base flex-grow truncate">{item.name}</span>
           {level < 2 && (
             <button
               onClick={() => setSelectedPath([...path, item.name])}
-              className="ml-2 text-xs bg-gray-100 px-2 py-1 rounded hover:bg-gray-200"
+              className="ml-2 text-xs bg-gray-100 px-2 py-1 rounded hover:bg-gray-200 whitespace-nowrap"
             >
               Add Sub
             </button>
           )}
           <button
             onClick={() => handleDelete([...path, item.name])}
-            className="ml-auto p-1 hover:text-red-600"
+            className="p-1 hover:text-red-600"
           >
             <BsTrash size={14} />
           </button>
@@ -138,48 +138,50 @@ const Categories = ({ token }) => {
   }
 
   return (
-    <div className="p-4">
-      <h1 className="text-2xl font-bold mb-6">Category Management</h1>
+    <div className="p-3 sm:p-4">
+      <h1 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">Category Management</h1>
 
       {/* Add category form */}
-      <form onSubmit={handleAddCategory} className="mb-6 bg-white p-6 rounded-lg shadow-sm">
-        <h2 className="text-lg font-semibold mb-4">
+      <form onSubmit={handleAddCategory} className="mb-6 bg-white p-4 sm:p-6 rounded-lg shadow-sm">
+        <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">
           {selectedPath.length === 0
             ? 'Add Main Category'
             : `Add Subcategory to ${selectedPath.join(' > ')}`}
         </h2>
-        <div className="flex gap-4">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
           <input
             type="text"
             value={newCategory}
             onChange={(e) => setNewCategory(e.target.value)}
             placeholder="Enter category name"
-            className="border rounded-md px-3 py-2 flex-1"
+            className="border rounded-md px-3 py-2 flex-1 text-sm sm:text-base"
             disabled={isSubmitting}
           />
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="flex items-center gap-2 bg-black text-white px-4 py-2 rounded-md hover:bg-gray-800 disabled:opacity-50"
-          >
-            <BsPlus size={20} />
-            Add
-          </button>
-          {selectedPath.length > 0 && (
+          <div className="flex gap-2 sm:gap-3">
             <button
-              type="button"
-              onClick={() => setSelectedPath([])}
-              className="px-4 py-2 border rounded-md hover:bg-gray-50"
+              type="submit"
+              disabled={isSubmitting}
+              className="flex items-center justify-center gap-2 bg-black text-white px-4 py-2 rounded-md hover:bg-gray-800 disabled:opacity-50 flex-grow sm:flex-grow-0 text-sm sm:text-base"
             >
-              Cancel
+              <BsPlus size={18} />
+              Add
             </button>
-          )}
+            {selectedPath.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setSelectedPath([])}
+                className="px-4 py-2 border rounded-md hover:bg-gray-50 flex-grow sm:flex-grow-0 text-sm sm:text-base"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
         </div>
       </form>
 
       {/* Categories tree */}
-      <div className="bg-white p-6 rounded-lg shadow-sm">
-        <h2 className="text-lg font-semibold mb-4">Category Structure</h2>
+      <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm">
+        <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Category Structure</h2>
         {isLoading ? (
           <div className="flex justify-center py-4">
             <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-900 border-t-transparent"></div>

@@ -100,6 +100,11 @@ const Orders = () => {
     }
   }
 
+  // Reset to first page when filter changes - moved to top with other hooks
+  React.useEffect(() => {
+    setCurrentPage(1)
+  }, [filter])
+
   const isLoading = ordersLoading || preordersLoading
 
   if (isLoading) {
@@ -120,11 +125,6 @@ const Orders = () => {
   const filteredOrders = filter === 'orders' ? orders : preorders
   const currentItems = getCurrentPageItems(filteredOrders)
   const totalPages = Math.ceil(filteredOrders.length / ordersPerPage)
-
-  // Reset to first page when filter changes
-  React.useEffect(() => {
-    setCurrentPage(1)
-  }, [filter])
 
   const handlePageChange = (pageNumber) => {
     setCurrentPage(pageNumber)
@@ -174,10 +174,19 @@ const Orders = () => {
                       <span className="bg-blue-100 text-blue-800 text-xs px-2.5 py-0.5 rounded">Pre-order</span>
                     )}
                   </div>
-                  <div className='flex items-center gap-3 mt-1 text-base text-gray-700'>
+                  <div className='flex flex-wrap items-center gap-3 mt-1 text-base text-gray-700'>
                     <p>{currency}{(filter === 'preorders')? item.items[0].price : item.price}</p>
                     <p>Quantity: {(filter === 'preorders')? item.items[0].quantity : item.quantity}</p>
                     <p>Size: {(filter === 'preorders')? item.items[0].size : item.size}</p>
+                    {/* Display color if available */}
+                    {((filter === 'preorders' && item.items[0].color) || (filter === 'orders' && item.color)) && (
+                      <div className="flex items-center gap-1">
+                        <span>Color:</span>
+                        <span className="font-medium text-gray-800">
+                          {(filter === 'preorders')? item.items[0].color : item.color}
+                        </span>
+                      </div>
+                    )}
                   </div>
                   <p>{`Date: `} 
                     <span className='text-gray-400'>{new Date((filter === 'preorders')? item.createdAt : item.date).toLocaleString()}</span>

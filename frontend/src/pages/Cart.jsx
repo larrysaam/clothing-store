@@ -26,12 +26,23 @@ const Cart = () => {
       const tempData = [];
 
       for (const items in cartItems) {
-        for (const sizes in cartItems[items]) {
-          if (cartItems[items][sizes] > 0) {
+        for (const cartKey in cartItems[items]) {
+          if (cartItems[items][cartKey] > 0) {
+            // Parse the cartKey to extract size and color (color is hex code)
+            const [size, colorHex] = cartKey.includes('-') ? cartKey.split('-') : [cartKey, undefined];
+            
+            // Find the color name from the hex code
+            const product = products.find(p => p._id === items);
+            const colorData = colorHex && product?.colors ? 
+              product.colors.find(c => c.colorHex === colorHex) : null;
+            
             tempData.push({
               id: items,
-              size: sizes,
-              quantity: cartItems[items][sizes]
+              cartKey: cartKey,
+              size: size,
+              color: colorData?.colorName || undefined, // Store color name for display
+              colorHex: colorHex, // Store hex code for matching
+              quantity: cartItems[items][cartKey]
             })
           }
         }
@@ -41,19 +52,31 @@ const Cart = () => {
 
   }, [cartItems, products])
 
-  const validateInventory = (productId, size, quantity) => {
+  const validateInventory = (productId, size, colorHex, quantity) => {
     const product = products.find(p => p._id === productId)
-    const sizeData = product?.sizes.find(s => s.size === size)
+    let sizeData = null;
+    
+    if (colorHex && product?.colors) {
+      // Find the color first by hex code, then the size within that color
+      const colorData = product.colors.find(c => c.colorHex === colorHex)
+      sizeData = colorData?.sizes?.find(s => s.size === size)
+    } else if (product?.sizes) {
+      // Fallback to product-level sizes if no color specified
+      sizeData = product.sizes.find(s => s.size === size)
+    }
+    
+    const errorKey = `${productId}-${size}-${colorHex || 'default'}`;
+    
     if (sizeData && quantity > sizeData.quantity) {
       setInventoryErrors(prev => ({
         ...prev,
-        [`${productId}-${size}`]: `Only ${sizeData.quantity} items available`
+        [errorKey]: `Only ${sizeData.quantity} items available`
       }))
       setHasStockError(true)
     } else {
       setInventoryErrors(prev => {
         const newErrors = { ...prev }
-        delete newErrors[`${productId}-${size}`]
+        delete newErrors[errorKey]
         setHasStockError(Object.keys(newErrors).length > 0)
         return newErrors
       })
@@ -64,7 +87,7 @@ const Cart = () => {
     // Validate all items in cart
     if (products.length > 0 && cartData.length > 0) {
       cartData.forEach(item => {
-        validateInventory(item.id, item.size, item.quantity)
+        validateInventory(item.id, item.size, item.colorHex, item.quantity)
       })
     }
   }, [cartData, products])
@@ -88,36 +111,72 @@ const Cart = () => {
 
   // Update the handleSizeChange function
   const handleSizeChange = (item, newSize) => {
-    // First check if the new size has enough stock
     const product = products.find(p => p._id === item.id)
-    const sizeData = product?.sizes.find(s => s.size === newSize)
+    let sizeData = null;
+    
+    // Check stock based on whether item has color or not
+    if (item.colorHex && product?.colors) {
+      const colorData = product.colors.find(c => c.colorHex === item.colorHex)
+      sizeData = colorData?.sizes?.find(s => s.size === newSize)
+    } else if (product?.sizes) {
+      sizeData = product.sizes.find(s => s.size === newSize)
+    }
     
     if (sizeData && item.quantity <= sizeData.quantity) {
-      // Create a new cart state with all items' quantities at 0
       const newCartItems = { ...cartItems }
+      const newCartKey = item.colorHex ? `${newSize}-${item.colorHex}` : newSize;
       
-      // Set old size quantity to 0 and new size quantity to item quantity
+      // Set old cart key quantity to 0 and new cart key quantity to item quantity
       newCartItems[item.id] = {
         ...newCartItems[item.id],
-        [item.size]: 0,
-        [newSize]: item.quantity
+        [item.cartKey]: 0,
+        [newCartKey]: item.quantity
       }
       
       // Update cart context with single update
-      updateQuantity(item.id, newSize, item.quantity, newCartItems)
+      updateQuantity(item.id, newCartKey, item.quantity, newCartItems)
       
       // Validate inventory for new size
-      validateInventory(item.id, newSize, item.quantity)
+      validateInventory(item.id, newSize, item.colorHex, item.quantity)
     } else {
       // If not enough stock in new size, show error
+      const errorKey = `${item.id}-${newSize}-${item.colorHex || 'default'}`;
       setInventoryErrors(prev => ({
         ...prev,
-        [`${item.id}-${newSize}`]: `Only ${sizeData?.quantity || 0} items available`
+        [errorKey]: `Only ${sizeData?.quantity || 0} items available`
       }))
-      // Keep the original size
-      setCartData(prev => prev.map(cartItem => 
-        cartItem.id === item.id ? { ...cartItem, size: item.size } : cartItem
-      ))
+    }
+  }
+
+  // Add handleColorChange function
+  const handleColorChange = (item, newColorName) => {
+    const product = products.find(p => p._id === item.id)
+    const newColorData = product?.colors?.find(c => c.colorName === newColorName)
+    const sizeData = newColorData?.sizes?.find(s => s.size === item.size)
+    
+    if (sizeData && item.quantity <= sizeData.quantity) {
+      const newCartItems = { ...cartItems }
+      const newCartKey = `${item.size}-${newColorData.colorHex}`;
+      
+      // Set old cart key quantity to 0 and new cart key quantity to item quantity
+      newCartItems[item.id] = {
+        ...newCartItems[item.id],
+        [item.cartKey]: 0,
+        [newCartKey]: item.quantity
+      }
+      
+      // Update cart context with single update
+      updateQuantity(item.id, newCartKey, item.quantity, newCartItems)
+      
+      // Validate inventory for new color
+      validateInventory(item.id, item.size, newColorData.colorHex, item.quantity)
+    } else {
+      // If not enough stock in new color, show error
+      const errorKey = `${item.id}-${item.size}-${newColorData?.colorHex || 'default'}`;
+      setInventoryErrors(prev => ({
+        ...prev,
+        [errorKey]: `Only ${sizeData?.quantity || 0} items available`
+      }))
     }
   }
 
@@ -164,13 +223,32 @@ const Cart = () => {
                   {/* Make image clickable */}
                   <div 
                     onClick={() => navigate(`/product/${item.id}`)}
-                    className="cursor-pointer hover:opacity-80 transition-opacity"
+                    className="cursor-pointer hover:opacity-80 transition-opacity relative"
                   >
                     <img 
                       className='w-24 h-24 sm:w-32 sm:h-32 object-cover rounded-md' 
-                      src={productData.image[0]} 
-                      alt={productData.name}
+                      src={(() => {
+                        // Show color-specific image if available
+                        if (item.colorHex && productData.colors) {
+                          const colorData = productData.colors.find(c => c.colorHex === item.colorHex);
+                          if (colorData?.colorImages && colorData.colorImages.length > 0) {
+                            return colorData.colorImages[0];
+                          }
+                        }
+                        // Fallback to main product image
+                        return productData.image[0];
+                      })()} 
+                      alt={`${productData.name} - ${item.color || 'default'}`}
                     />
+                    {/* Color indicator badge on image */}
+                    {item.color && (
+                      <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full border-2 border-white shadow-md"
+                        style={{ 
+                          backgroundColor: item.colorHex || '#ccc'
+                        }}
+                        title={`Color: ${item.color}`}
+                      ></div>
+                    )}
                   </div>
                   <div className='flex flex-col gap-2 flex-1'>
                     {/* Make product name clickable */}
@@ -180,6 +258,21 @@ const Cart = () => {
                     >
                       {productData.name}
                     </p>
+                    {/* Show color if available with color indicator */}
+                    {item.color && (
+                      <div className='flex items-center gap-2 text-xs sm:text-sm text-gray-600'>
+                        <span>Color:</span>
+                        <div className="flex items-center gap-1">
+                          <div 
+                            className="w-4 h-4 rounded-full border border-gray-300 shadow-sm"
+                            style={{ 
+                              backgroundColor: item.colorHex || '#ccc'
+                            }}
+                          ></div>
+                          <span className="font-medium">{item.color}</span>
+                        </div>
+                      </div>
+                    )}
                     {/* Mobile price - only shows on mobile */}
                     <p className='block sm:hidden text-sm font-medium'>
                       <NumberFlow
@@ -191,26 +284,81 @@ const Cart = () => {
                         }} 
                       />
                     </p>
-                    <div className='flex items-center gap-4'>
+                    <div className='flex items-center gap-2 flex-wrap'>
+                      {/* Color Selection */}
+                      {productData.colors && productData.colors.length > 0 && (
+                        <Select
+                          value={item.color || ''}
+                          onValueChange={(newColor) => handleColorChange(item, newColor)}
+                        >
+                          <SelectTrigger className="w-[120px]">
+                            <SelectValue placeholder="Color">
+                              {item.color && (
+                                <div className="flex items-center gap-2">
+                                  <div 
+                                    className="w-4 h-4 rounded-full border border-gray-300 shadow-sm flex-shrink-0"
+                                    style={{ 
+                                      backgroundColor: item.colorHex || '#ccc'
+                                    }}
+                                  ></div>
+                                  <span className="truncate text-sm">{item.color}</span>
+                                </div>
+                              )}
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {productData.colors.map((colorOption) => (
+                              <SelectItem 
+                                key={colorOption.colorName} 
+                                value={colorOption.colorName}
+                              >
+                                <div className="flex items-center gap-2 w-full">
+                                  <div 
+                                    className="w-4 h-4 rounded-full border border-gray-300 shadow-sm flex-shrink-0"
+                                    style={{ backgroundColor: colorOption.colorHex }}
+                                  ></div>
+                                  <span className="text-sm">{colorOption.colorName}</span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      
+                      {/* Size Selection */}
                       <Select
                         value={item.size}
                         onValueChange={(newSize) => handleSizeChange(item, newSize)}
                       >
                         <SelectTrigger className="w-[80px]">
-                          <SelectValue placeholder="Size" />
+                          <SelectValue placeholder="Size">
+                            {item.size}
+                          </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
-                          {productData.sizes.map((sizeOption) => (
-                            <SelectItem 
-                              key={sizeOption.size} 
-                              value={sizeOption.size}
-                              disabled={sizeOption.quantity === 0}
-                            >
-                              {sizeOption.size}
-                            </SelectItem>
-                          ))}
+                          {(() => {
+                            // Get available sizes based on selected color
+                            let availableSizes = [];
+                            if (item.colorHex && productData.colors) {
+                              const colorData = productData.colors.find(c => c.colorHex === item.colorHex);
+                              availableSizes = colorData?.sizes || [];
+                            } else if (productData.sizes) {
+                              availableSizes = productData.sizes;
+                            }
+                            
+                            return availableSizes.map((sizeOption) => (
+                              <SelectItem 
+                                key={sizeOption.size} 
+                                value={sizeOption.size}
+                                disabled={sizeOption.quantity === 0}
+                              >
+                                {sizeOption.size}
+                              </SelectItem>
+                            ));
+                          })()}
                         </SelectContent>
                       </Select>
+                      
                       {/* Universal quantity input - works on both mobile and desktop */}
                       <div className="flex items-center gap-2">
                         <input 
@@ -222,15 +370,15 @@ const Cart = () => {
                             if (e.target.value === '' || e.target.value === '0') {
                               return null
                             }
-                            updateQuantity(item.id, item.size, newValue)
-                            validateInventory(item.id, item.size, newValue)
+                            updateQuantity(item.id, item.cartKey, newValue)
+                            validateInventory(item.id, item.size, item.colorHex, newValue)
                           }}
                           className='border w-16 sm:w-20 p-1 sm:px-2 rounded-md'
                         />
                       </div>
                       {/* Mobile delete button */}
                       <button 
-                        onClick={()=>updateQuantity(item.id, item.size, 0)}
+                        onClick={()=>updateQuantity(item.id, item.cartKey, 0)}
                         className='block sm:hidden p-2 text-gray-500 hover:text-red-500'
                       >
                         <img 
@@ -240,9 +388,9 @@ const Cart = () => {
                         />
                       </button>
                     </div>
-                    {inventoryErrors[`${item.id}-${item.size}`] && (
+                    {inventoryErrors[`${item.id}-${item.size}-${item.colorHex || 'default'}`] && (
                       <span className="text-red-500 text-xs font-bold">
-                        {inventoryErrors[`${item.id}-${item.size}`]}
+                        {inventoryErrors[`${item.id}-${item.size}-${item.colorHex || 'default'}`]}
                       </span>
                     )}
                   </div>
@@ -261,7 +409,7 @@ const Cart = () => {
 
                 {/* Desktop delete button - hidden on mobile */}
                 <button 
-                  onClick={()=>updateQuantity(item.id, item.size, 0)}
+                  onClick={()=>updateQuantity(item.id, item.cartKey, 0)}
                   className='hidden sm:block mx-auto'
                 >
                   <img 

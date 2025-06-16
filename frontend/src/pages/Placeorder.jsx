@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react'
+import React, { useContext, useEffect, useState } from 'react'
 import Title from '@/components/Title'
 import CartTotal from '@/features/shared/CartTotal'
 import { assets } from '@/assets/assets'
@@ -35,6 +35,10 @@ const Placeorder = () => {
   } = useForm({
     resolver: zodResolver(orderSchema)
   })
+
+  useEffect(()=>{
+    console.log("Cart Items:  ",cartItems)
+  },[])
 
   const createOrderMutation = useMutation({
     mutationFn: (orderData) => {

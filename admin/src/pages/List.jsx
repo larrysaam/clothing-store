@@ -3,29 +3,26 @@ import axios from 'axios'
 import { backendUrl, currency } from '../App'
 import { toast } from "sonner"
 import { BsPencil, BsTrash } from 'react-icons/bs'
-import EditProductDialog from '../components/EditProductDialog';
+import { useNavigate } from 'react-router-dom';
 
 const List = ({token}) => {
   const [list, setList] = useState([])
   const [currentPage, setCurrentPage] = useState(1)
   const [isLoading, setIsLoading] = useState(false)
-  const [editingItem, setEditingItem] = useState(null)
-  const [editForm, setEditForm] = useState({
-    name: '',
-    price: '',
-    category: '',
-    description: ''
-  })
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState(null);
   const [searchTerm, setSearchTerm] = useState("")
   const [showLowStock, setShowLowStock] = useState(false)
   const [filterType, setFilterType] = useState('all'); // 'all', 'normal', 'preorder'
   const itemsPerPage = 5
 
   // Move getTotalQuantity to the top before it's used
-  const getTotalQuantity = (sizes) => {
-    return sizes.reduce((total, size) => total + size.quantity, 0);
+  const getTotalQuantity = (product) => {
+    if (!product || !product.colors || !Array.isArray(product.colors)) {
+      return 0;
+    }
+    return product.colors.reduce((totalQty, colorVariant) => {
+      const colorQty = colorVariant.sizes.reduce((sum, size) => sum + size.quantity, 0);
+      return totalQty + colorQty;
+    }, 0);
   }
 
   // Update the fetchList function
@@ -65,17 +62,10 @@ const List = ({token}) => {
     }
   }
 
-  // Update handleEdit function
-  const handleEdit = (product) => {
-    setSelectedProduct(product);
-    setIsEditDialogOpen(true);
-  };
+  const navigate = useNavigate();
 
-  // Add handleEditComplete function
-  const handleEditComplete = async () => {
-    await fetchList();
-    setSelectedProduct(null);
-    setIsEditDialogOpen(false);
+  const handleEdit = (product) => {
+    navigate(`/edit/${product._id}`);
   };
 
   // Get current products in reverse order
@@ -97,7 +87,7 @@ const List = ({token}) => {
         
         if (!showLowStock) return matchesSearch && matchesType;
         
-        const totalQuantity = getTotalQuantity(product.sizes);
+        const totalQuantity = getTotalQuantity(product);
         return matchesSearch && matchesType && totalQuantity < 10;
       })
   }
@@ -130,7 +120,7 @@ const List = ({token}) => {
       <p className="font-medium">All Products List</p>
       <div className='flex flex-wrap items-center gap-2 text-sm'>
         <p>Found: {getFilteredProducts().length}</p>
-        <p>Low Stock: {list.filter(item => getTotalQuantity(item.sizes) < 10).length}</p>
+        <p>Low Stock: {list.filter(item => getTotalQuantity(item) < 10).length}</p>
         <p>Preorder: {getStats().preorderCount}</p>
         <p>Normal: {getStats().normalCount}</p>
         <p>Total: {list.length}</p>
@@ -200,72 +190,31 @@ const List = ({token}) => {
             className={`
               grid grid-cols-[1fr_2fr_1fr] md:grid-cols-[1fr_2fr_1fr_1fr_1fr_1fr]
               items-center gap-2 py-2 px-2 border text-sm
-              ${getTotalQuantity(item.sizes) < 10 ? 'bg-red-50' : ''}
+              ${getTotalQuantity(item) < 10 ? 'bg-red-50' : ''}
             `} 
             key={index}
           >
-            <img alt='' src={item.image[0]} className='w-auto rounded-md'/>
-            {
-              editingItem === item._id ? (
-                <>
-                  <input
-                    type="text"
-                    value={editForm.name}
-                    onChange={(e) => setEditForm({...editForm, name: e.target.value})}
-                    className="border rounded px-2 py-1"
-                  />
-                  <input
-                    type="text"
-                    value={editForm.category}
-                    onChange={(e) => setEditForm({...editForm, category: e.target.value})}
-                    className="border rounded px-2 py-1"
-                  />
-                  <input
-                    type="number"
-                    value={editForm.price}
-                    onChange={(e) => setEditForm({...editForm, price: e.target.value})}
-                    className="border rounded px-2 py-1"
-                  />
-                  <div className="flex gap-2 justify-center">
-                    <button
-                      onClick={() => handleUpdate(item._id)}
-                      className="px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600"
-                    >
-                      Save
-                    </button>
-                    <button
-                      onClick={() => setEditingItem(null)}
-                      className="px-3 py-1 bg-gray-500 text-white rounded-md hover:bg-gray-600"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <p>{item.name}</p>
-                  <p>{item.category}</p>
-                  <p>{currency}{item.price}</p>
-                  <p className={`${getTotalQuantity(item.sizes) < 10 ? 'text-red-500 font-medium' : ''}`}>
-                    {getTotalQuantity(item.sizes)}
-                  </p>
-                  <div className="flex gap-2 justify-center">
-                    <button
-                      onClick={() => handleEdit(item)}
-                      className="p-2 hover:text-blue-600 transition-colors"
-                    >
-                      <BsPencil size={16} />
-                    </button>
-                    <button
-                      onClick={() => removeProduct(item._id)}
-                      className="p-2 hover:text-red-600 transition-colors"
-                    >
-                      <BsTrash size={16} />
-                    </button>
-                  </div>
-                </>
-              )
-            }
+            <img alt={item.name} src={item.image[0]} className='w-auto h-12 object-cover rounded-md'/>
+            <p>{item.name}</p>
+            <p>{item.category}</p>
+            <p>{currency}{item.price}</p>
+            <p className={`${getTotalQuantity(item) < 10 ? 'text-red-500 font-medium' : ''}`}>
+              {getTotalQuantity(item)}
+            </p>
+            <div className="flex gap-2 justify-center">
+              <button
+                onClick={() => handleEdit(item)}
+                className="p-2 hover:text-blue-600 transition-colors"
+              >
+                <BsPencil size={16} />
+              </button>
+              <button
+                onClick={() => removeProduct(item._id)}
+                className="p-2 hover:text-red-600 transition-colors"
+              >
+                <BsTrash size={16} />
+              </button>
+            </div>
           </div>
         ))
       }
@@ -302,17 +251,6 @@ const List = ({token}) => {
         </div>
       )}
     </div>
-
-    {/* Replace the inline edit form with the dialog */}
-    {selectedProduct && (
-      <EditProductDialog
-        product={selectedProduct}
-        isOpen={isEditDialogOpen}
-        onClose={() => setIsEditDialogOpen(false)}
-        onUpdate={handleEditComplete}
-        token={token}
-      />
-    )}
   </>
   )
 }

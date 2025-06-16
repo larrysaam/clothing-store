@@ -121,10 +121,24 @@ const Preorders = ({token}) => {
                 <h3 className="font-semibold text-sm sm:text-base mb-2">Items</h3>
                 <div className="space-y-1 text-sm">
                   {preorder.items.map((item, index) => (
-                    <p key={index} className="flex justify-between">
-                      <span>{item.name} - {item.size}</span>
-                      <span className="text-gray-600">x{item.quantity}</span>
-                    </p>
+                    <div key={index} className="flex justify-between items-start">
+                      <div className="flex-grow">
+                        <span>{item.name} - {item.size}</span>
+                        {item.color && (
+                          <div className="flex items-center gap-1 text-xs text-gray-500">
+                            <span>Color: {item.color}</span>
+                            {item.colorHex && (
+                              <div
+                                className="w-3 h-3 rounded-full border border-gray-300"
+                                style={{ backgroundColor: item.colorHex }}
+                                title={item.color}
+                              ></div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <span className="text-gray-600 ml-2">x{item.quantity}</span>
+                    </div>
                   ))}
                 </div>
               </div>
