@@ -12,6 +12,7 @@ import Dashboard from './pages/Dashboard'
 import Categories from './pages/Categories'
 import Preorders from './pages/Preorders'
 import Settings from './pages/Settings'
+import Messages from './pages/Messages' // Import the new Messages page
 
 
 export const backendUrl = import.meta.env.VITE_BACKEND_URL
@@ -45,6 +46,7 @@ const App = () => {
                     <Route path='/orders' element={<Orders token={token} />} />
                     <Route path='/preorders' element={<Preorders token={token} />} />
                     <Route path='/category' element={<Categories token={token} />} />
+                    <Route path='/messages' element={<Messages token={token} />} /> {/* Add route for Messages */}
                     <Route path='/' element={<Dashboard token={token} />} />
                     <Route path='*' element={<NotFound />} />
                   </Routes>

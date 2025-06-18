@@ -1,6 +1,9 @@
 import React, { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { BsGrid,  } from 'react-icons/bs'
+import {  
+  BsChatDots // Example icon for messages
+} from 'react-icons/bs'
 import { HiMenuAlt3 } from 'react-icons/hi'
 import { IoMdClose } from 'react-icons/io'
 import { assets } from '../assets/assets'
@@ -99,6 +102,15 @@ const Sidebar = () => {
           >
             <img className='w-5 h-5' src={assets.orderIcon} alt='order-icon' />
             <p className='block'>PreOrders</p>
+          </NavLink>
+
+          <NavLink 
+            to='/messages' 
+            className='flex items-center gap-3 border border-gray-300 border-r-0 px-3 py-2 rounded-l'
+          >
+            {/* Use an appropriate icon, e.g., BsChatDots or assets.message_icon */}
+            <BsChatDots size={18} /> 
+            <p className='hidden sm:block'>Messages</p>
           </NavLink>
 
           <NavLink 

@@ -615,4 +615,60 @@ const getUserPhotos = async (req, res) => {
   }
 };
 
-export { addProduct, listProducts, removeProduct, singleProduct, getProductById, updateProduct, updateQuantity, addReview, getProductReviews, addUserPhoto, getUserPhotos }
+// Get all reviews from all products for admin panel
+const getAllProductReviewsAdmin = async (req, res) => {
+  try {
+    const allReviews = await productModel.aggregate([
+      { $unwind: "$reviews" }, // Deconstruct the reviews array
+      {
+        $project: { // Select and reshape the output
+          _id: "$reviews._id", // Use review's _id as the main ID for this entry
+          productId: "$_id",    // Keep product's ID
+          productName: "$name",
+          productImage: { $arrayElemAt: ["$image", 0] }, // Get the first image of the product
+          userId: "$reviews.userId",
+          userName: "$reviews.userName",
+          rating: "$reviews.rating",
+          comment: "$reviews.comment",
+          createdAt: "$reviews.createdAt"
+        }
+      },
+      { $sort: { "createdAt": -1 } } // Sort by review creation date, newest first
+    ]);
+
+    res.json({
+      success: true,
+      reviews: allReviews
+    });
+  } catch (error) {
+    console.error('Get all product reviews admin error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to fetch all reviews'
+    });
+  }
+};
+
+// Delete a specific review from a product
+const deleteProductReviewAdmin = async (req, res) => {
+  try {
+    const { productId, reviewId } = req.params;
+
+    const product = await productModel.findById(productId);
+    if (!product) {
+      return res.status(404).json({ success: false, message: "Product not found" });
+    }
+
+    // Remove the review from the product's reviews array
+    product.reviews.pull({ _id: reviewId });
+    product.calculateAverageRating(); // Recalculate average rating and total reviews
+    await product.save();
+
+    res.json({ success: true, message: "Review deleted successfully" });
+  } catch (error) {
+    console.error('Delete product review admin error:', error);
+    res.status(500).json({ success: false, message: error.message || "Failed to delete review" });
+  }
+};
+
+export { addProduct, listProducts, removeProduct, singleProduct, getProductById, updateProduct, updateQuantity, addReview, getProductReviews, getAllProductReviewsAdmin, deleteProductReviewAdmin, addUserPhoto, getUserPhotos }

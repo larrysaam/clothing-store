@@ -2,12 +2,24 @@ import orderModel from "../models/orderModel.js";
 import userModel from "../models/userModel.js";
 import productModel from "../models/productModel.js";
 import Stripe from 'stripe'
+import * as paypal from '@paypal/checkout-server-sdk';
 import { sendOrderNotification } from '../utils/emailService.js'
-import { trusted } from "mongoose";
 
 //global variables
 const currency = process.env.CURRENCY || 'EUR' // Default currency symbol
 const deliveryCharge = 10
+
+// PayPal SDK Client Setup
+const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID;
+const PAYPAL_CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET;
+
+// Use SandboxEnvironment for testing, LiveEnvironment for production
+// Access core and orders via paypal.default if the SDK is wrapped in a default export
+const paypalSdk = paypal.default || paypal; // Fallback if 'default' doesn't exist
+const environment = process.env.NODE_ENV === 'production'
+  ? new paypalSdk.core.LiveEnvironment(PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET)
+  : new paypalSdk.core.SandboxEnvironment(PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET);
+const paypalClient = new paypalSdk.core.PayPalHttpClient(environment);
 
 //Gateway initialize
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -63,6 +75,156 @@ const placeOrder = async (req, res) => {
   }
 }
 
+// Server-side function to create a PayPal order
+const createPaypalOrder = async (req, res) => {
+  try {
+    const { items } // Expect items to calculate amount
+      = req.body;
+
+      console.log('Creating PayPal order with items:', items)
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ success: false, message: 'Order items are required to create PayPal order.' });
+    }
+
+    // Calculate total amount from items. This logic should mirror your cart total calculation.
+    // This is a simplified example; you'll need to fetch product prices securely from your DB.
+    let calculatedAmount = 0;
+    for (const item of items) {
+        const product = await productModel.findById(item._id);
+        if (!product) throw new Error(`Product with id ${item._id} not found.`);
+        calculatedAmount += product.price * item.quantity;
+    }
+    calculatedAmount += deliveryCharge; // Add delivery charge
+
+    const request = new paypalSdk.orders.OrdersCreateRequest();
+    request.prefer('return=representation');
+    request.requestBody({
+      intent: 'CAPTURE',
+      purchase_units: [
+        {
+          amount: {
+            currency_code: process.env.CURRENCY || 'USD', // Ensure this matches frontend
+            value: calculatedAmount.toFixed(2),
+          },
+          // You can add more details like items list here if needed by PayPal
+        },
+      ],
+    });
+
+    const paypalOrder = await paypalClient.execute(request);
+    console.log("Paypal order created : ", paypalOrder.result.purchase_units)
+    res.status(201).json({ success: true, orderID: paypalOrder.result.id });
+
+  } catch (error) {
+    console.error('Error creating PayPal order:', error);
+    res.status(500).json({ success: false, message: 'Could not create PayPal order', error: error.message });
+  }
+};
+
+// Server-side function to capture a PayPal order and finalize in DB
+const capturepaypalorder = async (req, res) => {
+  const {userId, items, amount, address } = req.body; // Expect full order details
+  const {orderID} = req.params;
+
+
+  console.log('Capturing PayPal order with items:', items, 'OrderId', orderID)
+  if (!orderID || !userId || !items || !amount || !address) {
+    return res.status(400).json({ success: false, message: 'Missing required fields for capturing PayPal order (orderID, userId, items, amount, address).' });
+  }
+
+  const request = new paypalSdk.orders.OrdersCaptureRequest(orderID);
+  request.requestBody({}); // Empty request body for capture
+
+  try {
+    const capture = await paypalClient.execute(request);
+    console.log('PayPal capture successful:', capture.result);
+
+    if (capture.result.status === 'COMPLETED') {
+      // Payment is successful in PayPal. Now, create the order in your database.
+      const processedItems = await validateAndProcessOrderItems(items);
+      await updateProductQuantities(processedItems);
+
+      const orderData = {
+        userId,
+        items: processedItems,
+        address,
+        amount,
+        paymentMethod: "PayPal",
+        payment: true,
+        paymentId: orderID, // PayPal Order ID
+        date: Date.now()
+      };
+
+      const newOrder = new orderModel(orderData);
+      await newOrder.save();
+      await sendOrderNotification(newOrder);
+      await userModel.findByIdAndUpdate(userId, { cartData: {} });
+
+      console.log('paypal payment successful')
+      res.status(200).json({
+        success: true,
+        message: 'Payment captured and order placed successfully',
+        orderDetails: newOrder
+      });
+    } else {
+      // Handle other statuses like PENDING, FAILED, etc.
+      res.status(400).json({ success: false, message: `PayPal payment not completed. Status: ${capture.result.status}` });
+    }
+  } catch (error) {
+    console.error('Error capturing PayPal order:', error);
+    // Check if error is a PayPalHttpError for more details
+    if (error.isAxiosError && error.response && error.response.data) { // Axios error from PayPal
+        console.error('PayPal API Error details:', error.response.data);
+        return res.status(error.response.status || 500).json({ success: false, message: 'Could not capture PayPal order.', error: error.response.data });
+    }
+    res.status(500).json({ success: false, message: 'Could not capture PayPal order', error: error.message });
+  }
+}
+
+//Placing orders using PayPal method (after client-side approval)
+const placeOrderPaypal = async (req, res) => {
+  try {
+    const { userId, items, amount, address, paypalOrderId, payment } = req.body;
+
+    console.log('Placing PayPal order with items:', items);
+    console.log('PayPal Order ID:', paypalOrderId);
+
+    // Validate and process items to ensure they have proper color/size/quantity info
+    const processedItems = await validateAndProcessOrderItems(items);
+    
+    // Update product quantities first
+    await updateProductQuantities(processedItems);
+
+    const orderData = {
+      userId,
+      items: processedItems,
+      address,
+      amount,
+      paymentMethod: "PayPal",
+      payment: payment === true, // Ensure payment status is correctly set
+      paymentId: paypalOrderId, // Store PayPal Order ID
+      date: Date.now()
+    };
+
+    const newOrder = new orderModel(orderData);
+    await newOrder.save();
+
+    // Send email notification
+    await sendOrderNotification(newOrder);
+
+    // Clear the cart
+    await userModel.findByIdAndUpdate(userId, { cartData: {} });
+
+    res.json({
+      success: true,
+      message: 'Order placed successfully with PayPal'
+    });
+  } catch (error) {
+    console.error('Place PayPal order error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 
 //Placing orders using Stripe method
 const placeOrderStripe = async  (req,res) => {
@@ -658,4 +820,4 @@ const updateProductQuantities = async (items) => {
   }
 };
 
-export { placeOrder, placeOrderStripe, allOrders, userOrders, updateStatus, verifyStripe, validatePayment, createPaymentIntent, createOrder, createCheckoutSession, verifyCheckoutSession }
+export { placeOrder, createPaypalOrder, capturepaypalorder, placeOrderPaypal, placeOrderStripe, allOrders, userOrders, updateStatus, verifyStripe, validatePayment, createPaymentIntent, createOrder, createCheckoutSession, verifyCheckoutSession }

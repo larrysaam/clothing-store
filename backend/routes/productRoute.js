@@ -12,7 +12,9 @@ import {
   addReview, 
   getProductReviews,
   addUserPhoto,
-  getProductById, 
+  getProductById,
+  getAllProductReviewsAdmin,
+  deleteProductReviewAdmin, 
   getUserPhotos
 } from '../controllers/productController.js';
 
@@ -30,6 +32,10 @@ router.get('/list', listProducts);
 router.put('/quantity', adminAuth, updateQuantity)
 router.put('/update/:id', authUser, updateProduct);
 
+// Review routes (some already exist in reviewRoutes.js, ensure no conflict or consolidate)
+// Admin specific review routes
+router.get('/reviews/all', adminAuth, getAllProductReviewsAdmin); // For admin to get all reviews
+router.delete('/:productId/reviews/:reviewId', adminAuth, deleteProductReviewAdmin); // For admin to delete a review
 
 router.post('/reviews/add', authUser, addReview)
 router.get('/product/:productId', getProductReviews)
