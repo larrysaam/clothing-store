@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import cartAddSound from '@/assets/cart-add-sound.wav'; // Import your sound file
 
 export const ShopContext = createContext();
 
@@ -15,6 +16,9 @@ const ShopContextProvider = (props) => {
   const [token, setToken] = useState(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  // Create an Audio object for the notification sound
+  const notificationSound = new Audio(cartAddSound);
 
   // Храним локальное состояние корзины
   const [cartItems, setCartItems] = useState({});
@@ -88,7 +92,17 @@ const ShopContextProvider = (props) => {
       updatedCart[itemId][cartKey] = (updatedCart[itemId][cartKey] || 0) + 1;
       setCartItems(updatedCart);
     },
-    onError: (error) => toast.error(error.message),
+    onSuccess: (data, variables) => {
+      // Find product name for the toast message
+      const product = products.find(p => p._id === variables.itemId);
+      const productName = product ? product.name : 'Item';
+      const colorName = variables.color ? products.find(p=>p._id === variables.itemId)?.colors.find(c=>c.colorHex === variables.color)?.colorName : '';
+      const sizeName = variables.size;
+
+      toast.success(`${productName} ${colorName ? `(${colorName}, ${sizeName})` : `(${sizeName})`} added to cart!`);
+      notificationSound.play().catch(error => console.error("Error playing sound:", error)); // Play sound
+    },
+    onError: (error) => toast.error(error.response?.data?.message || error.message || "Failed to add item to cart."),
     onSettled: () => {
       queryClient.invalidateQueries(["cart"]);
     },

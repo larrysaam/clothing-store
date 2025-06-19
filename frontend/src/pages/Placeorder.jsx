@@ -88,7 +88,7 @@ const Placeorder = () => {
       }
     },
     onError: (error) => {
-      toast.error(error.message || 'Failed to process order');
+      toast.error(error.message ||'Failed to process order');
       navigate('/cart');
     }
   });
