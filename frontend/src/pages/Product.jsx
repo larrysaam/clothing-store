@@ -7,7 +7,7 @@ import NotFound from '@/components/NotFound';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import axios from 'axios';
-import { toast } from 'react-toastify';
+import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import ReviewSection from '@/components/ReviewSection'
@@ -216,10 +216,11 @@ const Product = () => {
             </div>
 
             {/* Main image */}
-            <div className='w-full sm:w-[85%] h-[300px] sm:h-[500px]'>
+            {/* Add a container for zoom effect */}
+            <div className='w-full sm:w-[85%] h-[300px] sm:h-[500px] overflow-hidden rounded-md group'>
               <img 
                 src={activeImage} 
-                className='w-full h-full object-cover rounded-md' 
+                className='w-full h-full object-cover transition-transform duration-500 ease-in-out group-hover:scale-125' 
                 alt={`${productData?.name} - ${selectedColor?.colorName || 'main'}`}
               />
             </div>
@@ -360,14 +361,10 @@ const Product = () => {
               ) : (
                 <button 
                   onClick={handleAddToCart}
-                  disabled={!selectedSize || !selectedColor || availableQuantity === 0}
-                  className={`w-full sm:w-auto bg-black text-white px-6 sm:px-8 py-3 text-sm rounded-full transition-all ${
-                    !selectedSize || !selectedColor || availableQuantity === 0 
-                      ? 'opacity-50 cursor-not-allowed' 
-                      : 'hover:bg-gray-800 active:bg-gray-900'
-                  }`}
+                  className="w-full sm:w-auto bg-black text-white px-6 sm:px-8 py-3 text-sm rounded-full transition-all 
+                             hover:bg-gray-800 active:bg-gray-900"
                 >
-                  {!selectedColor ? 'Select Color & Size' : !selectedSize ? 'Select Size' : 'Add to Cart'}
+                  Add to Cart
                 </button>
               )}
             </div>

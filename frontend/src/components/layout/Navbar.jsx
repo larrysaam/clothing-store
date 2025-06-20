@@ -21,7 +21,10 @@ const Navbar = () => {
     Kids: { subcategories: [] }
   })
   const [isLoading, setIsLoading] = useState(true)
-  const { showSearch, setShowSearch, getCartCount, navigate, token, setToken } = useContext(ShopContext)
+  const { 
+    showSearch, setShowSearch, getCartCount, navigate, token, setToken,
+    cartItems, products, currency, getCartAmount, updateQuantity // Added for mini-cart
+  } = useContext(ShopContext)
 
   const logout = () => {
     localStorage.removeItem('token')
@@ -128,6 +131,59 @@ const Navbar = () => {
       </div>
     );
   };
+
+  // Mini Cart Logic
+  const [isMiniCartOpen, setIsMiniCartOpen] = useState(false);
+
+  const getMiniCartItems = () => {
+    const items = [];
+    if (!products || products.length === 0 || !cartItems) {
+      return items;
+    }
+
+    for (const productId in cartItems) {
+      if (cartItems.hasOwnProperty(productId)) {
+        const product = products.find(p => p._id === productId);
+        if (product) {
+          for (const cartKey in cartItems[productId]) {
+            if (cartItems[productId].hasOwnProperty(cartKey) && cartItems[productId][cartKey] > 0) {
+              const quantity = cartItems[productId][cartKey];
+              const [size, colorHex] = cartKey.includes('-') ? cartKey.split('-') : [cartKey, undefined];
+              
+              let colorName = '';
+              let itemImage = product.image?.[0];
+
+              if (colorHex && product.colors) {
+                const colorData = product.colors.find(c => c.colorHex === colorHex);
+                if (colorData) {
+                  colorName = colorData.colorName;
+                  if (colorData.colorImages && colorData.colorImages.length > 0) {
+                    itemImage = colorData.colorImages[0];
+                  }
+                }
+              }
+
+              items.push({
+                id: productId,
+                cartKey: cartKey,
+                name: product.name,
+                price: product.price,
+                image: itemImage,
+                size: size,
+                colorName: colorName,
+                colorHex: colorHex,
+                quantity: quantity,
+                totalPrice: product.price * quantity
+              });
+            }
+          }
+        }
+      }
+    }
+    return items;
+  };
+
+  const miniCartDisplayItems = getMiniCartItems();
 
   return (
     <>
@@ -236,18 +292,71 @@ const Navbar = () => {
                 </div>
               )}
             </div>
-            <button
-              onClick={() => (navigate('/cart'))}
-              className='relative transition-all duration-300 hover:scale-[125%]'
+            {/* Cart Icon and Mini-Cart Dropdown */}
+            <div 
+              className='relative group'
+              onMouseEnter={() => setIsMiniCartOpen(true)}
+              onMouseLeave={() => setIsMiniCartOpen(false)}
             >
-              <img src={assets.cart} alt='cartIcon' className='w-5 min-w-5 ' />
-              <p
-                className='absolute -right-[5px] -bottom-[5px] w-4 text-center 
-                  leading-4 bg-black text-white  aspect-square rounded-full text-[10px]'
+              <button
+                onClick={() => navigate('/cart')}
+                className='relative transition-all duration-300 group-hover:scale-[115%]' // Slightly less scale on hover for group
               >
-                {getCartCount()}
-              </p>
-            </button>
+                <img src={assets.cart} alt='cartIcon' className='w-5 min-w-5 ' />
+                {getCartCount() > 0 && (
+                  <p
+                    className='absolute -right-[5px] -bottom-[5px] w-4 text-center 
+                      leading-4 bg-black text-white aspect-square rounded-full text-[10px]'
+                  >
+                    {getCartCount()}
+                  </p>
+                )}
+              </button>
+
+              {/* Mini-Cart Dropdown */}
+              {isMiniCartOpen && (
+                <div 
+                  className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-md shadow-xl z-20
+                             opacity-0 -translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 ease-in-out custom-scrollbar w-96" // Slide-down animation
+                >
+                  {miniCartDisplayItems.length === 0 ? (
+                    <div className="p-4 text-center text-gray-500">Your cart is empty.</div>
+                  ) : (
+                    <>
+                      <div className="p-4 max-h-96 overflow-y-auto space-y-3 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"> {/* Increased max-height */}
+                        {miniCartDisplayItems.map(item => (
+                          <div key={`${item.id}-${item.cartKey}`} className="flex items-start gap-3 border-b pb-3 last:border-b-0 last:pb-0">
+                            <img src={item.image} alt={item.name} className="w-16 h-16 object-cover rounded-md flex-shrink-0" />
+                            <div className="flex-grow text-sm">
+                              <p className="font-medium text-gray-800 truncate">{item.name}</p>
+                              <p className="text-xs text-gray-500">
+                                Size: {item.size} {item.colorName && `| Color: ${item.colorName}`}
+                              </p>
+                              <p className="text-xs text-gray-500">Qty: {item.quantity}</p>
+                            </div>
+                            <div className="text-sm font-medium text-gray-700 whitespace-nowrap">
+                              {currency}{(item.price * item.quantity).toFixed(2)}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="p-4 border-t border-gray-200">
+                        <div className="flex justify-between items-center mb-3">
+                          <span className="font-semibold text-gray-700">Subtotal:</span>
+                          <span className="font-bold text-lg text-black">{currency}{getCartAmount().toFixed(2)}</span>
+                        </div>
+                        <button
+                          onClick={() => { navigate('/cart'); setIsMiniCartOpen(false); }}
+                          className="w-full bg-black text-white py-2.5 rounded-md text-sm font-medium hover:bg-gray-800 transition-colors"
+                        >
+                          View Cart & Checkout
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
             <img
               src={assets.burger}
               onClick={() => setVisible(true)}

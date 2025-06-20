@@ -9,7 +9,7 @@ const LookCard = ({ image, label }) => {
         className="w-full h-[600px] object-cover rounded-lg"
       />
       <button
-        className="absolute bottom-4 left-4 bg-white text-black px-4 py-2 rounded-full flex items-center gap-2 opacity-100  transition-opacity duration-300"
+        className="absolute bottom-4 left-4 bg-white text-black px-4 py-2 rounded-full hover:bg-slate-200 flex items-center gap-2 opacity-100  transition-opacity duration-300"
       >
         <span className="material-icons"></span>
         {label}
