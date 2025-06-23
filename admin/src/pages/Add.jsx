@@ -17,6 +17,7 @@ import * as z from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller, useForm, useFieldArray } from "react-hook-form"
 import { useParams, useNavigate } from "react-router-dom"
+import { is } from 'date-fns/locale'
 
 const CLOTHING_SIZES = ['S', 'M', 'L', 'XL', '2XL', '3XL', '4XL']
 const SHOE_SIZES = Array.from({ length: 23 }, (_, i) => (i + 26).toString())
@@ -162,10 +163,13 @@ const Add = ({token}) => {
     colorImages: z.array(z.any())
       .min(1, "At least one image is required")
       .max(4, "Maximum 4 images allowed per color"),
+    // Make sizes optional - can be empty array for products without sizes
     sizes: z.array(z.object({
       size: z.string().min(1, "Size is required"),
       quantity: z.number().min(0, "Quantity cannot be negative")
-    })).min(1, "At least one size is required")
+    })).optional().default([]),
+    // Add direct quantity field for products without sizes
+    quantity: z.number().min(0, "Quantity cannot be negative").optional().default(0)
   })
 
   const validationSchema = z.object({
@@ -176,12 +180,13 @@ const Add = ({token}) => {
     description: z.string().min(2, {message: "Description is required"}),
     price: z.coerce.number().positive({message : "Please enter product price"}),
     category: z.string().min(1, {message: "Category is required"}),
-    subcategory: z.string().min(1, {message: "Subcategory is required"}),
-    subsubcategory: z.string().min(1, {message: "Second level category is required"}),
+    subcategory: z.string().optional(), // Made optional
+    subsubcategory: z.string().optional(), // Made optional
     bestseller: z.boolean(),
     preorder: z.boolean(),
     label: z.string(),
     sizeType: z.string(),
+    hasSizes: z.boolean(),
     colors: z.array(colorVariantSchema)
       .min(1, "At least one color variant is required"),
   })
@@ -200,15 +205,14 @@ const Add = ({token}) => {
       preorder: false,
       label: "none",
       sizeType: 'clothing',
+      hasSizes: true, // New field to control if product has sizes
       colors: [],
     },
   })
   
   // Add this line to check if all category fields are selected
   const canAddColors = Boolean(
-    watch('category') && 
-    watch('subcategory') && 
-    watch('subsubcategory')
+    watch('category')
   )
 
   // Add useFieldArray hook for colors
@@ -225,7 +229,12 @@ const Add = ({token}) => {
       // Add basic product info
       Object.keys(values).forEach(key => {
         if (!['images', 'colors'].includes(key)) {
-          formData.append(key, values[key])
+          let value = values[key]
+          // Convert empty strings to null for optional category fields
+          if ((key === 'subcategory' || key === 'subsubcategory') && (!value || value.trim() === '')) {
+            value = null
+          }
+          formData.append(key, value)
         }
       })
 
@@ -243,7 +252,8 @@ const Add = ({token}) => {
       const colorsData = values.colors.map(color => ({
         colorName: color.colorName,
         colorHex: color.colorHex,
-        sizes: color.sizes
+        sizes: color.sizes || [],
+        quantity: color.quantity || 0 // Include direct quantity for products without sizes
       }))
       formData.append('colors', JSON.stringify(colorsData))
 
@@ -270,22 +280,82 @@ const Add = ({token}) => {
         });
       }
 
-      if (response.data.success) {
+      console.log('API Response:', response);
+      console.log('Response data:', response?.data);
+      console.log('Success flag:', response?.data?.success);
+
+      if (response?.data?.success) {
+        console.log('SUCCESS: Entering success block');
         toast.success(isEditMode ? 'Product updated successfully!' : 'Product added successfully!')
-        if (!isEditMode) {
-          reset() // Reset form only if adding
-          // Clear color variants
-          while (fields.length > 0) {
-            remove(0)
+
+        try {
+          if (!isEditMode) {
+            console.log('SUCCESS: Resetting form for new product');
+
+            // Clear color variants first
+            try {
+              console.log('SUCCESS: Clearing color variants, current count:', fields.length);
+              // Use a safer approach to clear all fields
+              const fieldsCount = fields.length;
+              for (let i = fieldsCount - 1; i >= 0; i--) {
+                console.log(`Removing field at index ${i}`);
+                remove(i);
+              }
+              console.log('SUCCESS: Color variants cleared');
+            } catch (colorError) {
+              console.error('Error clearing color variants:', colorError);
+            }
+
+            // Reset form with default values
+            try {
+              console.log('SUCCESS: Resetting form fields');
+              reset({
+                images: [],
+                name: "",
+                description: "",
+                price: "",
+                category: "",
+                subcategory: "",
+                subsubcategory: "",
+                bestseller: false,
+                preorder: false,
+                label: "none",
+                sizeType: 'clothing',
+                hasSizes: true,
+                colors: [],
+              });
+              console.log('SUCCESS: Form reset completed');
+            } catch (resetError) {
+              console.error('Error resetting form:', resetError);
+            }
+
+          } else {
+            console.log('SUCCESS: Navigating to list for edit mode');
+            // Navigate back to list after editing
+            navigate('/list')
           }
-        } else {
-          navigate('/list') // Navigate back to list after editing
+        } catch (resetError) {
+          console.error('Error during form reset:', resetError)
+          // Don't throw the error, just log it so the finally block executes
         }
+      } else {
+        console.log('ERROR: API returned success: false');
+        console.log('Response data:', response?.data);
+        // Handle case where API call succeeded but returned success: false
+        const errorMessage = response?.data?.message || `Failed to ${isEditMode ? 'update' : 'add'} product`
+        toast.error(errorMessage)
       }
     } catch (error) {
+      console.log('CATCH: Error caught in onSubmit');
       console.error(`Error ${isEditMode ? 'updating' : 'adding'} product:`, error)
+      console.log('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
       toast.error(error.response?.data?.message || `Failed to ${isEditMode ? 'update' : 'add'} product`)
     } finally {
+      console.log('FINALLY: Setting isSubmitting to false');
       setIsSubmitting(false)
     }
   }
@@ -337,12 +407,13 @@ const Add = ({token}) => {
               description: productData.description,
               price: productData.price,
               category: productData.category,
-              subcategory: productData.subcategory,
-              subsubcategory: productData.subsubcategory,
+              subcategory: productData.subcategory || "", // Convert null to empty string for form
+              subsubcategory: productData.subsubcategory || "", // Convert null to empty string for form
               bestseller: productData.bestseller,
               preorder: productData.preorder,
               label: productData.label || "none",
-              sizeType: productData.sizeType || 'clothing', // Ensure sizeType is in product data
+              sizeType: productData.sizeType || 'clothing',
+              hasSizes: productData.hasSizes !== false, // Default to true if not specified
               colors: [], // Will be populated by append below
             });
 
@@ -352,7 +423,8 @@ const Add = ({token}) => {
                 colorName: color.colorName,
                 colorHex: color.colorHex,
                 colorImages: color.colorImages || [], // Pass URLs
-                sizes: color.sizes.map(s => ({ size: s.size, quantity: s.quantity })) || []
+                sizes: color.sizes?.map(s => ({ size: s.size, quantity: s.quantity })) || [],
+                quantity: color.quantity || 0 // Include direct quantity
               });
             });
           } else {
@@ -412,6 +484,8 @@ const Add = ({token}) => {
   }, [watch('category'), watch('sizeType')])
 
   const ColorVariant = ({ index, control, remove, watch, getSizeOptions }) => {
+    const hasSizes = watch('hasSizes')
+
     return (
       <div className="border rounded-lg p-4 mb-4 bg-gray-50">
         <div className="flex justify-between items-center mb-4">
@@ -489,53 +563,76 @@ const Add = ({token}) => {
           />
         </div>
 
-        <div className="sizes-section mt-4">
-          <p className="font-medium mb-4">Sizes and Quantities</p>
-          <Controller
-            name={`colors.${index}.sizes`}
-            control={control}
-            render={({ field, fieldState: { error } }) => (
-              <>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                  {getSizeOptions().map((size) => (
-                    <div key={size} className="flex flex-col gap-2 p-3 border rounded-md">
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium">{size}</span>
-                        <Checkbox 
-                          checked={field.value?.some(s => s.size === size) || false}
-                          onCheckedChange={(checked) => {
-                            const currentSizes = field.value || []
-                            const newSizes = checked 
-                              ? [...currentSizes, { size, quantity: 0 }]
-                              : currentSizes.filter(s => s.size !== size)
-                            field.onChange(newSizes)
-                          }}
-                        />
+        {hasSizes ? (
+          <div className="sizes-section mt-4">
+            <p className="font-medium mb-4">Sizes and Quantities</p>
+            <Controller
+              name={`colors.${index}.sizes`}
+              control={control}
+              render={({ field, fieldState: { error } }) => (
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                    {getSizeOptions().map((size) => (
+                      <div key={size} className="flex flex-col gap-2 p-3 border rounded-md">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium">{size}</span>
+                          <Checkbox
+                            checked={field.value?.some(s => s.size === size) || false}
+                            onCheckedChange={(checked) => {
+                              const currentSizes = field.value || []
+                              const newSizes = checked
+                                ? [...currentSizes, { size, quantity: 0 }]
+                                : currentSizes.filter(s => s.size !== size)
+                              field.onChange(newSizes)
+                            }}
+                          />
+                        </div>
+                        {field.value?.some(s => s.size === size) && (
+                          <Input
+                            type="number"
+                            min="0"
+                            placeholder="Qty"
+                            className="w-full"
+                            value={field.value.find(s => s.size === size)?.quantity || 0}
+                            onChange={(e) => {
+                              const quantity = parseInt(e.target.value) || 0
+                              const newSizes = field.value.map(s =>
+                                s.size === size ? { ...s, quantity } : s
+                              )
+                              field.onChange(newSizes)
+                            }}
+                          />
+                        )}
                       </div>
-                      {field.value?.some(s => s.size === size) && (
-                        <Input
-                          type="number"
-                          min="0"
-                          placeholder="Qty"
-                          className="w-full"
-                          value={field.value.find(s => s.size === size)?.quantity || 0}
-                          onChange={(e) => {
-                            const quantity = parseInt(e.target.value) || 0
-                            const newSizes = field.value.map(s => 
-                              s.size === size ? { ...s, quantity } : s
-                            )
-                            field.onChange(newSizes)
-                          }}
-                        />
-                      )}
-                    </div>
-                  ))}
-                </div>
-                {error && <p className="text-red-500 text-sm mt-1">{error.message}</p>}
-              </>
-            )}
-          />
-        </div>
+                    ))}
+                  </div>
+                  {error && <p className="text-red-500 text-sm mt-1">{error.message}</p>}
+                </>
+              )}
+            />
+          </div>
+        ) : (
+          <div className="quantity-section mt-4">
+            <p className="font-medium mb-4">Quantity</p>
+            <Controller
+              name={`colors.${index}.quantity`}
+              control={control}
+              render={({ field, fieldState: { error } }) => (
+                <>
+                  <Input
+                    type="number"
+                    min="0"
+                    placeholder="Enter quantity"
+                    className="w-full max-w-[200px]"
+                    value={field.value || 0}
+                    onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                  />
+                  {error && <p className="text-red-500 text-sm mt-1">{error.message}</p>}
+                </>
+              )}
+            />
+          </div>
+        )}
       </div>
     )
   }
@@ -646,28 +743,31 @@ const Add = ({token}) => {
         </div>
 
         <div>
-          <p className='mb-2'>Subcategory</p>
+          <p className='mb-2'>Subcategory <span className="text-gray-500 text-sm">(Optional)</span></p>
           <Controller
             name="subcategory"
             control={control}
             render={({ field, fieldState: { error } }) => (
               <>
-                <Select 
-                  value={field.value || ""}
+                <Select
+                  value={field.value || "none"}
                   onValueChange={(value) => {
-                    field.onChange(value)
+                    // Convert "none" back to empty string for form state
+                    const actualValue = value === "none" ? "" : value
+                    field.onChange(actualValue)
                     reset({ ...watch(), subsubcategory: '' })
                     const category = watch('category')
-                    if (category && value) {
-                      fetchSubSubcategories(category, value)
+                    if (category && actualValue) {
+                      fetchSubSubcategories(category, actualValue)
                     }
                   }}
                   disabled={!watch('category') || availableSubcategories.length === 0}
                 >
                   <SelectTrigger className="w-[140px]">
-                    <SelectValue placeholder="Choose..." />
+                    <SelectValue placeholder="Optional..." />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
                     {availableSubcategories.map((subcategory) => (
                       <SelectItem key={subcategory} value={subcategory}>
                         {subcategory}
@@ -682,21 +782,26 @@ const Add = ({token}) => {
         </div>
 
         <div>
-          <p className='mb-2'>Second Level Category</p>
+          <p className='mb-2'>Second Level Category <span className="text-gray-500 text-sm">(Optional)</span></p>
           <Controller
             name="subsubcategory"
             control={control}
             render={({ field, fieldState: { error } }) => (
               <>
-                <Select 
-                  value={field.value || ""}
-                  onValueChange={(value) => field.onChange(value)}
+                <Select
+                  value={field.value || "none"}
+                  onValueChange={(value) => {
+                    // Convert "none" back to empty string for form state
+                    const actualValue = value === "none" ? "" : value
+                    field.onChange(actualValue)
+                  }}
                   disabled={!watch('subcategory') || availableSubSubcategories.length === 0}
                 >
                   <SelectTrigger className="w-[140px]">
-                    <SelectValue placeholder="Choose..." />
+                    <SelectValue placeholder="Optional..." />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
                     {availableSubSubcategories.map((subsubcategory) => (
                       <SelectItem key={subsubcategory.name} value={subsubcategory.name}>
                         {subsubcategory.name}
@@ -732,47 +837,81 @@ const Add = ({token}) => {
       </div>
 
       <div className="mb-4">
-        <p className="mb-2">Size Type</p>
-        <Controller
-          name="sizeType"
-          control={control}
-          render={({ field }) => (
-            <ToggleGroup 
-              type="single" 
-              value={field.value}
-              onValueChange={(value) => {
-                if (value) {
+        <div className='flex items-center gap-2 mb-4'>
+          <label
+            htmlFor="hasSizes"
+            className="cursor-pointer leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          >
+            Product has sizes
+          </label>
+          <Controller
+            name="hasSizes"
+            control={control}
+            render={({ field }) => (
+              <Checkbox
+                id="hasSizes"
+                checked={field.value}
+                onCheckedChange={(value) => {
                   field.onChange(value)
-                  // Reset sizes within all color variants when changing size type
+                  // Reset sizes within all color variants when toggling has sizes
                   const currentColors = watch('colors')
                   const updatedColors = currentColors.map(color => ({
                     ...color,
-                    sizes: []
+                    sizes: [],
+                    quantity: value ? 0 : color.quantity || 0 // Keep quantity if switching to no sizes
                   }))
                   setValue('colors', updatedColors, { shouldDirty: true, shouldValidate: true })
-                }
-              }}
-              className="flex gap-2"
-            >
-              <ToggleGroupItem 
-                value="clothing" 
-                className={`px-4 py-2 border rounded-md ${
-                  field.value === 'clothing' ? 'bg-black text-white' : ''
-                }`}
-              >
-                Clothing Sizes
-              </ToggleGroupItem>
-              <ToggleGroupItem 
-                value="shoes" 
-                className={`px-4 py-2 border rounded-md ${
-                  field.value === 'shoes' ? 'bg-black text-white' : ''
-                }`}
-              >
-                Shoe Sizes
-              </ToggleGroupItem>
-            </ToggleGroup>
-          )}
-        />
+                }}
+              />
+            )}
+          />
+        </div>
+
+        {watch('hasSizes') && (
+          <div>
+            <p className="mb-2">Size Type</p>
+            <Controller
+              name="sizeType"
+              control={control}
+              render={({ field }) => (
+                <ToggleGroup
+                  type="single"
+                  value={field.value}
+                  onValueChange={(value) => {
+                    if (value) {
+                      field.onChange(value)
+                      // Reset sizes within all color variants when changing size type
+                      const currentColors = watch('colors')
+                      const updatedColors = currentColors.map(color => ({
+                        ...color,
+                        sizes: []
+                      }))
+                      setValue('colors', updatedColors, { shouldDirty: true, shouldValidate: true })
+                    }
+                  }}
+                  className="flex gap-2"
+                >
+                  <ToggleGroupItem
+                    value="clothing"
+                    className={`px-4 py-2 border rounded-md ${
+                      field.value === 'clothing' ? 'bg-black text-white' : ''
+                    }`}
+                  >
+                    Clothing Sizes
+                  </ToggleGroupItem>
+                  <ToggleGroupItem
+                    value="shoes"
+                    className={`px-4 py-2 border rounded-md ${
+                      field.value === 'shoes' ? 'bg-black text-white' : ''
+                    }`}
+                  >
+                    Shoe Sizes
+                  </ToggleGroupItem>
+                </ToggleGroup>
+              )}
+            />
+          </div>
+        )}
       </div>
 
       <div className='flex items-center gap-2 mt-2 '>
@@ -848,7 +987,8 @@ const Add = ({token}) => {
                 colorName: '',
                 colorHex: '#000000',
                 colorImages: [],
-                sizes: []
+                sizes: [],
+                quantity: 0
               })}
               className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
             >

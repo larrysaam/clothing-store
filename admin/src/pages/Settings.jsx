@@ -6,7 +6,7 @@ import { NotificationSettings } from '@/features/settings/components/Notificatio
 import { ImageSettings } from '@/features/settings/components/ImageSettings'
 import { BannerLinkSection } from '@/features/settings/components/BannerLinkSection'
 import { HeroLinkSection } from '@/features/settings/components/HeroLinkSection'
-import { se } from 'date-fns/locale'
+import { LooksSettings } from '@/features/settings/components/LooksSettings'
 import axios from 'axios'
 import { toast } from "sonner"
 import { backendUrl } from '@/lib/utils'
@@ -31,7 +31,8 @@ const Settings = ({ token }) => {
       category: '',
       subcategory: '',
       subsubcategory: ''
-    }
+    },
+    looks: [] // Add looks array
   })
 
   // Add new state for products and categories
@@ -57,7 +58,19 @@ const Settings = ({ token }) => {
         })
         console.log('Fetched settings:', response.data)
         if (response.data.success) {
-          setSettings(response.data.settings)
+          // Initialize _type markers for existing looks
+          const settingsWithTypes = {
+            ...response.data.settings,
+            looks: response.data.settings.looks?.map(look => ({
+              ...look,
+              link: {
+                ...look.link,
+                _type: look.link.productId ? 'product' : 'category'
+              }
+            })) || []
+          }
+
+          setSettings(settingsWithTypes)
           setBannerText(response.data.settings.text.banner || '')
           // Set initial link type based on existing settings
           setLinkType(response.data.settings.link.productId ? 'product' : 'category')
@@ -107,8 +120,10 @@ const Settings = ({ token }) => {
   const {
     heroFiles,
     bannerFile,
+    lookFiles,
     handleHeroImagesChange,
-    handleBannerImageChange
+    handleBannerImageChange,
+    handleLookImageChange
   } = useImageUpload()
 
   const handleSubmit = async (e) => {
@@ -117,6 +132,8 @@ const Settings = ({ token }) => {
     try {
       setIsLoading(true)
       const formData = new FormData()
+      
+      // Existing form data...
       formData.append('currency[name]', settings.currency.name)
       formData.append('currency[sign]', settings.currency.sign)
       formData.append('email[notifications]', settings.email.notifications)
@@ -141,6 +158,19 @@ const Settings = ({ token }) => {
         subsubcategory: settings.herolink.subsubcategory || ''
       }))
       
+      // Handle looks data - clean up internal _type markers
+      const cleanedLooks = settings.looks.map(look => ({
+        ...look,
+        link: {
+          productId: look.link.productId || '',
+          category: look.link.category || '',
+          subcategory: look.link.subcategory || '',
+          subsubcategory: look.link.subsubcategory || ''
+          // Remove _type marker - it's only for UI
+        }
+      }))
+      formData.append('looks', JSON.stringify(cleanedLooks))
+      
       // Handle image uploads
       heroFiles.forEach(file => {
         formData.append('hero', file)
@@ -150,6 +180,11 @@ const Settings = ({ token }) => {
       if (bannerFile) {
         formData.append('banner', bannerFile)
       }
+      
+      // Handle look images
+      Object.entries(lookFiles).forEach(([index, file]) => {
+        formData.append(`look_${index}`, file)
+      })
 
       const response = await axios.put(`${backendUrl}/api/settings`, formData, {
         headers: { 
@@ -159,7 +194,18 @@ const Settings = ({ token }) => {
       })
 
       if (response.data.success) {
-        setSettings(response.data.settings)
+        // Re-initialize _type markers for the updated settings
+        const settingsWithTypes = {
+          ...response.data.settings,
+          looks: response.data.settings.looks?.map(look => ({
+            ...look,
+            link: {
+              ...look.link,
+              _type: look.link.productId ? 'product' : 'category'
+            }
+          })) || []
+        }
+        setSettings(settingsWithTypes)
         toast.success('Settings updated successfully')
       }
     } catch (error) {
@@ -233,15 +279,26 @@ const Settings = ({ token }) => {
           categories={categories}
         />
         
-
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="mt-6 w-full sm:w-auto px-6 py-2 bg-black text-white rounded-lg 
-                   hover:bg-gray-800 disabled:opacity-50"
-        >
-          {isLoading ? 'Saving...' : 'Save Settings'}
-        </button>
+        <LooksSettings
+          settings={settings}
+          onSettingsChange={setSettings}
+          lookFiles={lookFiles}
+          onLookImageChange={handleLookImageChange}
+          products={products}
+          categories={categories}
+          backendUrl={backendUrl}
+          token={token}
+        />
+        
+        <div className="flex justify-end">
+          <button
+            type="submit"
+            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+            disabled={isLoading}
+          >
+            {isLoading ? 'Saving...' : 'Save Settings'}
+          </button>
+        </div>
       </form>
     </div>
   )

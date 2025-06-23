@@ -27,7 +27,17 @@ const settingSchema = new mongoose.Schema({
     category: { type: String },
     subcategory: { type: String },  
     subsubcategory: { type: String }
-  }
+  },
+  looks: [{
+    image: { type: String, required: true },
+    label: { type: String, default: 'Shop the Look' },
+    link: {
+      productId: { type: String },
+      category: { type: String },
+      subcategory: { type: String },
+      subsubcategory: { type: String }
+    }
+  }]
 }, {
   timestamps: true
 })

@@ -7,14 +7,24 @@ import connectCloudinary from '../config/cloudinary.js'
 connectCloudinary()
 
 // Helper function to validate color data
-const validateColorData = (colors) => {
+const validateColorData = (colors, hasSizes = true) => {
   if (!Array.isArray(colors) || colors.length === 0) {
     throw new Error('At least one color variant is required');
   }
 
   colors.forEach(color => {
-    if (!color.colorName || !color.colorHex || !color.sizes) {
-      throw new Error('Each color must have a name, hex value, and sizes');
+    if (!color.colorName || !color.colorHex) {
+      throw new Error('Each color must have a name and hex value');
+    }
+
+    if (hasSizes) {
+      if (!color.sizes || !Array.isArray(color.sizes)) {
+        throw new Error('Each color must have sizes when product has sizes');
+      }
+    } else {
+      if (color.quantity === undefined || color.quantity < 0) {
+        throw new Error('Each color must have a valid quantity when product has no sizes');
+      }
     }
   });
 };
@@ -32,17 +42,18 @@ const addProduct = async (req, res) => {
       colors,
       bestseller,
       preorder,
-      label
+      label,
+      hasSizes
     } = req.body;
 
     console.log("Received label value:", label, "Type:", typeof label);
     console.log("Full request body:", req.body);
 
     // Validate required fields
-    if (!name || !description || !price || !category || !subcategory || !subsubcategory) {
+    if (!name || !description || !price || !category) {
       return res.status(400).json({
         success: false,
-        message: 'Missing required fields: name, description, price, category, subcategory, subsubcategory'
+        message: 'Missing required fields: name, description, price, category'
       });
     }
 
@@ -66,9 +77,13 @@ const addProduct = async (req, res) => {
     }
     
     console.log("colorData: ", colorData);
+    console.log("hasSizes: ", hasSizes);
+
+    // Convert hasSizes to boolean (default to true if not provided)
+    const productHasSizes = hasSizes === 'true' || hasSizes === true;
 
     // Validate colors data
-    validateColorData(colorData);
+    validateColorData(colorData, productHasSizes);
 
     // Handle main product images
     const mainImageUrls = [];
@@ -101,7 +116,7 @@ const addProduct = async (req, res) => {
       const colorImageFiles = req.files ? req.files.filter(file => file.fieldname === `colorImages_${index}`) : [];
 
       console.log("color image: ", colorImageFiles);
-      
+
       for (const file of colorImageFiles) {
         try {
           const result = await cloudinary.uploader.upload(file.path);
@@ -112,9 +127,24 @@ const addProduct = async (req, res) => {
         }
       }
 
+      // Process sizes based on whether product has sizes
+      let processedSizes = [];
+      if (productHasSizes) {
+        // Product has sizes - use the provided sizes
+        processedSizes = color.sizes || [];
+      } else {
+        // Product doesn't have sizes - create a single 'N/A' size with the quantity
+        processedSizes = [{
+          size: 'N/A',
+          quantity: color.quantity || 0
+        }];
+      }
+
       return {
-        ...color,
-        colorImages
+        colorName: color.colorName,
+        colorHex: color.colorHex,
+        colorImages,
+        sizes: processedSizes
       };
     }));
 
@@ -128,12 +158,13 @@ const addProduct = async (req, res) => {
       price: Number(price),
       image: mainImageUrls,
       category: category.trim(),
-      subcategory: subcategory.trim(),
-      subsubcategory: subsubcategory.trim(),
+      subcategory: subcategory && subcategory !== 'null' ? subcategory.trim() : null,
+      subsubcategory: subsubcategory && subsubcategory !== 'null' ? subsubcategory.trim() : null,
       colors: processedColors,
       bestseller: Boolean(bestseller),
       preorder: Boolean(preorder),
       label: normalizedLabel,
+      hasSizes: productHasSizes,
       date: new Date()
     });
 
@@ -301,10 +332,35 @@ const updateProduct = async (req, res) => {
         parsedColorsArray = updates.colors;
       }
 
-      validateColorData(parsedColorsArray);
+      // Convert hasSizes to boolean (default to true if not provided)
+      const productHasSizes = updates.hasSizes === 'true' || updates.hasSizes === true;
 
-      // Ensure updates.colors is the parsed array of objects
-      updates.colors = parsedColorsArray;
+      validateColorData(parsedColorsArray, productHasSizes);
+
+      // Process colors based on whether product has sizes
+      const processedColorsForUpdate = parsedColorsArray.map(color => {
+        let processedSizes = [];
+        if (productHasSizes) {
+          // Product has sizes - use the provided sizes
+          processedSizes = color.sizes || [];
+        } else {
+          // Product doesn't have sizes - create a single 'N/A' size with the quantity
+          processedSizes = [{
+            size: 'N/A',
+            quantity: color.quantity || 0
+          }];
+        }
+
+        return {
+          colorName: color.colorName,
+          colorHex: color.colorHex,
+          colorImages: color.colorImages || [],
+          sizes: processedSizes
+        };
+      });
+
+      // Ensure updates.colors is the processed array of objects
+      updates.colors = processedColorsForUpdate;
 
       // Handle new color images if any
       if (req.files && req.files.length > 0) {

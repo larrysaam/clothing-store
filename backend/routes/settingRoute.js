@@ -1,6 +1,6 @@
 import express from 'express'
 import multer from 'multer'
-import { getSettings, updateSettings, updateBannerLink } from '../controllers/settingController.js'
+import { getSettings, updateSettings, updateBannerLink, deleteLook } from '../controllers/settingController.js'
 import adminAuth from '../middleware/adminAuth.js'
 
 const router = express.Router()
@@ -24,10 +24,16 @@ router.put('/',
   adminAuth, 
   upload.fields([
     { name: 'hero', maxCount: 5 },
-    { name: 'banner', maxCount: 1 }
+    { name: 'banner', maxCount: 1 },
+    { name: 'look_0', maxCount: 1 },
+    { name: 'look_1', maxCount: 1 },
+    { name: 'look_2', maxCount: 1 },
+    { name: 'look_3', maxCount: 1 },
+    { name: 'look_4', maxCount: 1 }
   ]),
   updateSettings
 )
 router.put('/banner-link', adminAuth, updateBannerLink)
+router.delete('/look/:lookIndex', adminAuth, deleteLook)
 
 export default router

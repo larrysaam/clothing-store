@@ -12,6 +12,8 @@ const Navbar = () => {
   const [visible, setVisible] = useState(false) // State to toggle sidebar
   const [showNavbar, setShowNavbar] = useState(true)
   const [lastScrollY, setLastScrollY] = useState(0)
+  const [activeDropdown, setActiveDropdown] = useState(null) // State for dropdown visibility
+  const [dropdownTimeout, setDropdownTimeout] = useState(null) // Timeout for dropdown delay
   const [categories, setCategories] = useState({
     'All Products': {
       subcategories: ['']
@@ -95,20 +97,51 @@ const Navbar = () => {
     i18n.changeLanguage(i18n.language === 'en' ? 'fr' : 'en');
   };
 
+  // Helper functions for dropdown management
+  const handleDropdownEnter = (category) => {
+    if (dropdownTimeout) {
+      clearTimeout(dropdownTimeout);
+      setDropdownTimeout(null);
+    }
+    setActiveDropdown(category);
+  };
+
+  const handleDropdownLeave = () => {
+    const timeout = setTimeout(() => {
+      setActiveDropdown(null);
+    }, 150); // Small delay to allow moving between nav item and dropdown
+    setDropdownTimeout(timeout);
+  };
+
+  const handleDropdownStay = () => {
+    if (dropdownTimeout) {
+      clearTimeout(dropdownTimeout);
+      setDropdownTimeout(null);
+    }
+  };
+
   const renderSubcategories = (category) => {
-    if (category === 'All Products') return null;
-    
+    if (category === 'All Products' || activeDropdown !== category) return null;
+
     return (
-      <div className="absolute invisible group-hover:visible opacity-0 group-hover:opacity-100 
-                    transition-all duration-300 left-1/2 -translate-x-1/2 pt-5 w-screen bg-white shadow-lg">
-        <div className="container mx-auto px-16 py-8">
-          <div className="grid grid-cols-4 gap-8">
+      <div className="fixed opacity-100 transition-all duration-300 pt-5 bg-white shadow-lg z-50"
+           style={{
+             left: '0',
+             right: '0',
+             width: '100vw',
+             top: '80px' // Adjust based on your navbar height
+           }}
+           onMouseEnter={handleDropdownStay}
+           onMouseLeave={handleDropdownLeave}>
+        <div className="container mx-auto px-4 sm:px-8 lg:px-16 py-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             {categories[category].subcategories.map((firstLevel) => (
               <div key={firstLevel.name} className="flex flex-col gap-4">
                 {/* First level subcategory as heading */}
-                <Link 
+                <Link
                   to={`/collection?category=${category}&subcategory=${firstLevel.name}`}
                   className="font-medium text-black hover:text-gray-700"
+                  onClick={() => setActiveDropdown(null)}
                 >
                   {firstLevel.name}
                 </Link>
@@ -119,6 +152,7 @@ const Navbar = () => {
                       key={secondLevel}
                       to={`/collection?category=${category}&subcategory=${firstLevel.name}&second=${secondLevel}`}
                       className="text-gray-600 hover:text-black text-sm"
+                      onClick={() => setActiveDropdown(null)}
                     >
                       {secondLevel}
                     </Link>
@@ -204,22 +238,30 @@ const Navbar = () => {
           <ul className='hidden sm:flex gap-5 text-sm text-black'>
             {Object.keys(categories).map((category) => (
               <div key={category} className="group relative">
-                <NavLink 
-                  to={category === 'All Products' ? '/collection' : '#'} 
+                <NavLink
+                  to={category === 'All Products' ? '/collection' : '#'}
                   className='flex flex-col text-[16px] items-center gap-1'
+                  onMouseEnter={() => category !== 'All Products' && handleDropdownEnter(category)}
+                  onMouseLeave={handleDropdownLeave}
                   onClick={(e) => {
                     if (category !== 'All Products') {
                       e.preventDefault();
+                    } else {
+                      setActiveDropdown(null);
                     }
                   }}
                 >
                   <p>{category}</p>
-                  <hr className='w-3/4 border-none h-[2px] bg-black scale-0 transition-all duration-500 group-hover:scale-100' />
+                  <hr className={`w-3/4 border-none h-[2px] bg-black transition-all duration-500 ${
+                    activeDropdown === category ? 'scale-100' : 'scale-0 group-hover:scale-100'
+                  }`} />
                 </NavLink>
-                {renderSubcategories(category)}
               </div>
             ))}
           </ul>
+
+          {/* Render dropdown outside of the navigation items */}
+          {Object.keys(categories).map((category) => renderSubcategories(category))}
   
           <div className='flex items-center gap-6'>
             {/* Language toggle button */}
@@ -313,10 +355,10 @@ const Navbar = () => {
                 )}
               </button>
 
-              {/* Mini-Cart Dropdown */}
+              {/* Mini-Cart Dropdown - Hidden on mobile */}
               {isMiniCartOpen && (
-                <div 
-                  className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-md shadow-xl z-20
+                <div
+                  className="hidden md:block absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-md shadow-xl z-20
                              opacity-0 -translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 ease-in-out custom-scrollbar w-96" // Slide-down animation
                 >
                   {miniCartDisplayItems.length === 0 ? (

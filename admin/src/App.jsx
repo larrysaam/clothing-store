@@ -27,7 +27,7 @@ const App = () => {
   },[token])
 
   return (
-      <div className='bg-gray-50 min-h-screen'>
+      <div className='bg-gray-50 h-screen flex flex-col'>
       <Toaster richColors closeButton/>
       {
         token === '' ?
@@ -35,9 +35,9 @@ const App = () => {
             <>
               <Navbar setToken={setToken}/>
               <hr />
-              <div className='flex w-full'>
+              <div className='flex flex-1 overflow-hidden'>
                 <Sidebar />
-                <div className='w-[90%] sm:w-[70%] mx-auto ml-[max(5vw, 25px)] my-8 text-gray-600 text-base'>
+                <div className='flex-1 overflow-y-auto p-8 text-gray-600 text-base'>
                   <Routes>
                     <Route path='/settings' element={<Settings token={token} />} />
                     <Route path="/edit/:productId" element={<Add token={token} />} />

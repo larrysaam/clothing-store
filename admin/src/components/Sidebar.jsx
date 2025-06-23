@@ -42,13 +42,13 @@ const Sidebar = () => {
       {/* Sidebar */}
       <div className={`
         fixed md:static top-0 left-0 h-full bg-white z-40
-        w-[250px] md:w-[18%] 
+        w-[250px] md:w-[250px] md:min-w-[250px]
         transform transition-transform duration-300 ease-in-out
         ${isOpen ? 'translate-x-0' : '-translate-x-full'}
         md:translate-x-0
-        border-r-2
+        border-r-2 flex flex-col
       `}>
-        <div className='flex flex-col gap-4 pt-6 px-4 text-base'>
+        <div className='flex flex-col gap-4 pt-6 px-4 text-base overflow-y-auto flex-1'>
           <NavLink 
             to='/' 
             className='flex items-center gap-3 border border-gray-300 border-r-0 px-3 py-2 rounded-l'

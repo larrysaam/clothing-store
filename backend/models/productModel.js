@@ -46,8 +46,8 @@ const productSchema = new Schema({
     price: { type: Number, required: true },
     image: { type: Array, required: true }, // Keep main product images
     category: { type: String, required: true },
-    subcategory: { type: String, required: true },
-    subsubcategory: { type: String, required: true },
+    subcategory: { type: String, required: false, default: null },
+    subsubcategory: { type: String, required: false, default: null },
     colors: {
       type: [colorVariantSchema],
       required: true,
@@ -67,6 +67,10 @@ const productSchema = new Schema({
       type: String,
       enum: ['New model', 'Limited Edition', ''],
       default: ''
+    },
+    hasSizes: {
+      type: Boolean,
+      default: true
     },
     reviews: [{
       userId: {

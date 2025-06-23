@@ -44,16 +44,21 @@ const Collection = () => {
   // Update available subcategories based on selected categories
   const updateAvailableSubcategories = () => {
     if (selectedCategory.length === 0) {
-      // If no category is selected, show all unique subcategories
-      const allSubcategories = [...new Set(products.map(item => item.subcategory))]
+      // If no category is selected, show all unique subcategories (excluding null)
+      const allSubcategories = [...new Set(
+        products
+          .filter(item => item.subcategory) // Filter out null subcategories
+          .map(item => item.subcategory)
+      )]
       setAvailableSubcategories(allSubcategories)
     } else {
-      // Show subcategories only for selected categories
+      // Show subcategories only for selected categories (excluding null)
       const filteredSubcategories = [...new Set(
         products
           .filter(item => selectedCategory
             .map(cat => cat.toLowerCase())
             .includes(item.category.toLowerCase()))
+          .filter(item => item.subcategory) // Filter out null subcategories
           .map(item => item.subcategory)
       )]
       setAvailableSubcategories(filteredSubcategories)
@@ -86,7 +91,8 @@ const Collection = () => {
 
     // Subcategory filter
     if (selectedSubCategory.length > 0) {
-      filtered = filtered.filter(item => 
+      filtered = filtered.filter(item =>
+        item.subcategory && // Check if subcategory exists
         selectedSubCategory.map(subCat => subCat.toLowerCase())
           .includes(item.subcategory.toLowerCase())
       )

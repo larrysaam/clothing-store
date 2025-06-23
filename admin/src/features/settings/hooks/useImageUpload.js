@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 export const useImageUpload = () => {
   const [heroFiles, setHeroFiles] = useState([])
   const [bannerFile, setBannerFile] = useState(null)
+  const [lookFiles, setLookFiles] = useState({})
 
   const handleHeroImagesChange = (e) => {
     const files = Array.from(e.target.files)
@@ -18,10 +19,19 @@ export const useImageUpload = () => {
     setBannerFile(e.target.files[0])
   }
 
+  const handleLookImageChange = (index, file) => {
+    setLookFiles(prev => ({
+      ...prev,
+      [index]: file
+    }))
+  }
+
   return {
     heroFiles,
     bannerFile,
+    lookFiles,
     handleHeroImagesChange,
-    handleBannerImageChange
+    handleBannerImageChange,
+    handleLookImageChange
   }
 }
