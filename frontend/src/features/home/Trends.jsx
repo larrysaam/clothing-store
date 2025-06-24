@@ -15,7 +15,7 @@ const Trends = () => {
             Stay ahead with the latest fashion trends and must-have styles.
           </p>
         </div>
-        <div className="grid grid-cols-2 w-full gap-3">
+        <div className="grid grid-cols-1 w-full gap-3">
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="animate-pulse">
               <div className="bg-gray-300 w-full h-screen"></div>
@@ -41,7 +41,7 @@ const Trends = () => {
           Stay ahead with the latest fashion trends and must-have styles.
         </p>
       </div>
-      <div className="grid grid-cols-2 w-full gap-3">
+      <div className="grid grid-cols-1 w-full gap-3">
         {trends.map((trend, index) => (
           <TrendCard
             key={index}
