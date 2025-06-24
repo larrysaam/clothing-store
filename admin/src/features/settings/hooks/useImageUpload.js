@@ -5,6 +5,7 @@ export const useImageUpload = () => {
   const [heroFiles, setHeroFiles] = useState([])
   const [bannerFile, setBannerFile] = useState(null)
   const [lookFiles, setLookFiles] = useState({})
+  const [trendFiles, setTrendFiles] = useState({})
 
   const handleHeroImagesChange = (e) => {
     const files = Array.from(e.target.files)
@@ -26,12 +27,21 @@ export const useImageUpload = () => {
     }))
   }
 
+  const handleTrendImageChange = (index, file) => {
+    setTrendFiles(prev => ({
+      ...prev,
+      [index]: file
+    }))
+  }
+
   return {
     heroFiles,
     bannerFile,
     lookFiles,
+    trendFiles,
     handleHeroImagesChange,
     handleBannerImageChange,
-    handleLookImageChange
+    handleLookImageChange,
+    handleTrendImageChange
   }
 }

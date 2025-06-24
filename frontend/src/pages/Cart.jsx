@@ -325,39 +325,44 @@ const Cart = () => {
                         </Select>
                       )}
                       
-                      {/* Size Selection */}
-                      <Select
-                        value={item.size}
-                        onValueChange={(newSize) => handleSizeChange(item, newSize)}
-                      >
-                        <SelectTrigger className="w-[80px]">
-                          <SelectValue placeholder="Size">
-                            {item.size}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {(() => {
-                            // Get available sizes based on selected color
-                            let availableSizes = [];
-                            if (item.colorHex && productData.colors) {
-                              const colorData = productData.colors.find(c => c.colorHex === item.colorHex);
-                              availableSizes = colorData?.sizes || [];
-                            } else if (productData.sizes) {
-                              availableSizes = productData.sizes;
-                            }
-                            
-                            return availableSizes.map((sizeOption) => (
-                              <SelectItem 
-                                key={sizeOption.size} 
-                                value={sizeOption.size}
-                                disabled={sizeOption.quantity === 0}
-                              >
-                                {sizeOption.size}
-                              </SelectItem>
-                            ));
-                          })()}
-                        </SelectContent>
-                      </Select>
+                      {/* Size Selection - Only show if size is not 'N/A' */}
+                      {item.size !== 'N/A' && (
+                        <Select
+                          value={item.size}
+                          onValueChange={(newSize) => handleSizeChange(item, newSize)}
+                        >
+                          <SelectTrigger className="w-[80px]">
+                            <SelectValue placeholder="Size">
+                              {item.size}
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(() => {
+                              // Get available sizes based on selected color
+                              let availableSizes = [];
+                              if (item.colorHex && productData.colors) {
+                                const colorData = productData.colors.find(c => c.colorHex === item.colorHex);
+                                availableSizes = colorData?.sizes || [];
+                              } else if (productData.sizes) {
+                                availableSizes = productData.sizes;
+                              }
+
+                              // Filter out 'N/A' sizes from the dropdown
+                              availableSizes = availableSizes.filter(size => size.size !== 'N/A');
+
+                              return availableSizes.map((sizeOption) => (
+                                <SelectItem
+                                  key={sizeOption.size}
+                                  value={sizeOption.size}
+                                  disabled={sizeOption.quantity === 0}
+                                >
+                                  {sizeOption.size}
+                                </SelectItem>
+                              ));
+                            })()}
+                          </SelectContent>
+                        </Select>
+                      )}
                       
                       {/* Universal quantity input - works on both mobile and desktop */}
                       <div className="flex items-center gap-2">

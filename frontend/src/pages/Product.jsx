@@ -75,9 +75,27 @@ const Product = () => {
   // Get current sizes for the selected color
   const currentSizes = useMemo(() => {
     if (selectedColor && selectedColor.sizes && selectedColor.sizes.length > 0) {
-      return selectedColor.sizes;
+      // Filter out 'N/A' sizes for display
+      return selectedColor.sizes.filter(size => size.size !== 'N/A');
     }
     return [];
+  }, [selectedColor]);
+
+  // Check if product has sizes (not just N/A)
+  const hasRealSizes = useMemo(() => {
+    if (selectedColor && selectedColor.sizes && selectedColor.sizes.length > 0) {
+      return selectedColor.sizes.some(size => size.size !== 'N/A');
+    }
+    return false;
+  }, [selectedColor]);
+
+  // Get quantity for products without sizes (N/A size)
+  const noSizeQuantity = useMemo(() => {
+    if (selectedColor && selectedColor.sizes && selectedColor.sizes.length > 0) {
+      const naSizeObj = selectedColor.sizes.find(size => size.size === 'N/A');
+      return naSizeObj?.quantity || 0;
+    }
+    return 0;
   }, [selectedColor]);
 
   // Get available quantity for selected size
@@ -102,13 +120,14 @@ const Product = () => {
       return
     }
 
-    if (!selectedSize) {
-      toast.error('Please select a size')
+    if (!selectedColor) {
+      toast.error('Please select a color')
       return
     }
 
-    if (!selectedColor) {
-      toast.error('Please select a color')
+    // Only require size selection if product has real sizes (not just N/A)
+    if (hasRealSizes && !selectedSize) {
+      toast.error('Please select a size')
       return
     }
 
@@ -128,7 +147,7 @@ const Product = () => {
       const preorderItem = {
         productId: productData._id,
         name: productData.name,
-        size: selectedSize,
+        size: hasRealSizes ? selectedSize : 'N/A',
         quantity: 1,
         price: productData.price,
         image: activeImage,
@@ -169,18 +188,26 @@ const Product = () => {
       navigate('/login')
       return
     }
-    if (!selectedSize) {
-      toast.error('Please select a size')
-      return
-    }
     if (!selectedColor) {
       toast.error('Please select a color')
       return
     }
-    
+
+    // Only require size selection if product has real sizes (not just N/A)
+    if (hasRealSizes && !selectedSize) {
+      toast.error('Please select a size')
+      return
+    }
+
+    // Use selected size or 'N/A' for products without sizes
+    const sizeToUse = hasRealSizes ? selectedSize : 'N/A';
+
     // Pass color hex code to cart
-    addToCart(productData?._id, selectedSize, selectedColor?.colorHex);
-    toast.success(`${productData?.name} (${selectedColor?.colorName}, ${selectedSize}) added to cart!`);
+    addToCart(productData?._id, sizeToUse, selectedColor?.colorHex);
+
+    // Create appropriate success message
+    const sizeText = hasRealSizes ? `, ${sizeToUse}` : '';
+    toast.success(`${productData?.name} (${selectedColor?.colorName}${sizeText}) added to cart!`);
   }
 
   if (isLoading) {
@@ -279,16 +306,16 @@ const Product = () => {
               </div>
             )}
 
-            {/* Size Selection */}
-            {selectedColor && (
+            {/* Size Selection - Only show if product has real sizes */}
+            {selectedColor && hasRealSizes && (
               <div className='flex flex-col gap-3 sm:gap-4 my-6 sm:my-8'>
-                {/* <p className='font-medium'>
+                <p className='font-medium'>
                   Size: {selectedSize ? (
                     <span className='font-normal text-gray-600'>{selectedSize}</span>
                   ) : (
                     <span className='font-normal text-gray-400'>Please select a size</span>
                   )}
-                </p> */}
+                </p>
                 {currentSizes.length > 0 ? (
                   <ToggleGroup className='flex flex-wrap justify-start gap-2' type="single">
                     {currentSizes.map((sizeObj) => (
@@ -297,10 +324,10 @@ const Product = () => {
                         value={sizeObj.size}
                         disabled={sizeObj.quantity === 0}
                         className={`text-sm sm:text-base px-3 py-2 sm:px-4 sm:py-3 transition-all duration-200 border rounded-md
-                          ${sizeObj.quantity === 0 
-                            ? 'opacity-50 cursor-not-allowed bg-gray-100 text-gray-400' 
-                            : selectedSize === sizeObj.size 
-                              ? 'bg-black text-white border-black' 
+                          ${sizeObj.quantity === 0
+                            ? 'opacity-50 cursor-not-allowed bg-gray-100 text-gray-400'
+                            : selectedSize === sizeObj.size
+                              ? 'bg-black text-white border-black'
                               : 'bg-white text-black border-gray-300 hover:border-black hover:bg-gray-50'
                           }`}
                         onClick={() => sizeObj.quantity > 0 && handleSizeSelect(sizeObj.size)}
@@ -317,7 +344,7 @@ const Product = () => {
                 ) : (
                   <p className="text-gray-500 text-sm">No sizes available for this color</p>
                 )}
-                
+
                 {/* Stock indicator */}
                 {/* {selectedSize && availableQuantity > 0 && (
                   <p className="text-sm text-green-600">
@@ -326,6 +353,15 @@ const Product = () => {
                 )} */}
               </div>
             )}
+
+            {/* Stock indicator for products without sizes */}
+            {/* {selectedColor && !hasRealSizes && noSizeQuantity > 0 && (
+              <div className='my-6 sm:my-8'>
+                <p className="text-sm text-green-600">
+                  {noSizeQuantity} {noSizeQuantity === 1 ? 'item' : 'items'} in stock
+                </p>
+              </div>
+            )} */}
 
             {/* Selection prompt when no color is selected */}
             {!selectedColor && productData?.colors && productData.colors.length > 0 && (
@@ -346,12 +382,12 @@ const Product = () => {
                     Preordered
                   </button>
                 ) : (
-                  <button 
+                  <button
                     onClick={handlePreorder}
-                    disabled={!selectedSize || !selectedColor || availableQuantity === 0}
+                    disabled={!selectedColor || (hasRealSizes && !selectedSize) || (hasRealSizes ? availableQuantity === 0 : noSizeQuantity === 0)}
                     className={`w-full sm:w-auto bg-blue-600 text-white px-6 sm:px-8 py-3 text-sm rounded-full transition-all ${
-                      (!selectedSize || !selectedColor || availableQuantity === 0) 
-                        ? 'opacity-50 cursor-not-allowed' 
+                      (!selectedColor || (hasRealSizes && !selectedSize) || (hasRealSizes ? availableQuantity === 0 : noSizeQuantity === 0))
+                        ? 'opacity-50 cursor-not-allowed'
                         : 'hover:bg-blue-700 active:bg-blue-800'
                     }`}
                   >
@@ -359,10 +395,14 @@ const Product = () => {
                   </button>
                 )
               ) : (
-                <button 
+                <button
                   onClick={handleAddToCart}
-                  className="w-full sm:w-auto bg-black text-white px-6 sm:px-8 py-3 text-sm rounded-full transition-all 
-                             hover:bg-gray-800 active:bg-gray-900"
+                  disabled={!selectedColor || (hasRealSizes && !selectedSize) || (hasRealSizes ? availableQuantity === 0 : noSizeQuantity === 0)}
+                  className={`w-full sm:w-auto bg-black text-white px-6 sm:px-8 py-3 text-sm rounded-full transition-all ${
+                    (!selectedColor || (hasRealSizes && !selectedSize) || (hasRealSizes ? availableQuantity === 0 : noSizeQuantity === 0))
+                      ? 'opacity-50 cursor-not-allowed bg-gray-400'
+                      : 'hover:bg-gray-800 active:bg-gray-900'
+                  }`}
                 >
                   Add to Cart
                 </button>

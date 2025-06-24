@@ -82,6 +82,21 @@ const addProduct = async (req, res) => {
     // Convert hasSizes to boolean (default to true if not provided)
     const productHasSizes = hasSizes === 'true' || hasSizes === true;
 
+    // Convert preorder to boolean (default to false if not provided)
+    const isPreorder = preorder === 'true' || preorder === true;
+
+    // Convert bestseller to boolean (default to false if not provided)
+    const isBestseller = bestseller === 'true' || bestseller === true;
+
+    console.log("Boolean conversions:", {
+      originalPreorder: preorder,
+      isPreorder,
+      originalBestseller: bestseller,
+      isBestseller,
+      originalHasSizes: hasSizes,
+      productHasSizes
+    });
+
     // Validate colors data
     validateColorData(colorData, productHasSizes);
 
@@ -161,8 +176,8 @@ const addProduct = async (req, res) => {
       subcategory: subcategory && subcategory !== 'null' ? subcategory.trim() : null,
       subsubcategory: subsubcategory && subsubcategory !== 'null' ? subsubcategory.trim() : null,
       colors: processedColors,
-      bestseller: Boolean(bestseller),
-      preorder: Boolean(preorder),
+      bestseller: isBestseller,
+      preorder: isPreorder,
       label: normalizedLabel,
       hasSizes: productHasSizes,
       date: new Date()
@@ -395,6 +410,17 @@ const updateProduct = async (req, res) => {
     // Normalize label value if it exists
     if (updates.label !== undefined) {
       updates.label = (updates.label === 'none' || !updates.label) ? '' : updates.label;
+    }
+
+    // Convert boolean fields properly
+    if (updates.preorder !== undefined) {
+      updates.preorder = updates.preorder === 'true' || updates.preorder === true;
+    }
+    if (updates.bestseller !== undefined) {
+      updates.bestseller = updates.bestseller === 'true' || updates.bestseller === true;
+    }
+    if (updates.hasSizes !== undefined) {
+      updates.hasSizes = updates.hasSizes === 'true' || updates.hasSizes === true;
     }
 
     const product = await productModel.findByIdAndUpdate(

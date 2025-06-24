@@ -7,6 +7,8 @@ import { ImageSettings } from '@/features/settings/components/ImageSettings'
 import { BannerLinkSection } from '@/features/settings/components/BannerLinkSection'
 import { HeroLinkSection } from '@/features/settings/components/HeroLinkSection'
 import { LooksSettings } from '@/features/settings/components/LooksSettings'
+import { TrendsSettings } from '@/features/settings/components/TrendsSettings'
+import { SectionVisibilitySettings } from '@/features/settings/components/SectionVisibilitySettings'
 import axios from 'axios'
 import { toast } from "sonner"
 import { backendUrl } from '@/lib/utils'
@@ -32,7 +34,12 @@ const Settings = ({ token }) => {
       subcategory: '',
       subsubcategory: ''
     },
-    looks: [] // Add looks array
+    looks: [], // Add looks array
+    trends: [], // Add trends array
+    sectionVisibility: {
+      showNewLook: true,
+      showTrends: true
+    }
   })
 
   // Add new state for products and categories
@@ -49,6 +56,7 @@ const Settings = ({ token }) => {
     subsubcategory: ''
   })
 
+  
   // Add useEffect to fetch initial settings
   useEffect(() => {
     const fetchSettings = async () => {
@@ -58,7 +66,7 @@ const Settings = ({ token }) => {
         })
         console.log('Fetched settings:', response.data)
         if (response.data.success) {
-          // Initialize _type markers for existing looks
+          // Initialize _type markers for existing looks and trends
           const settingsWithTypes = {
             ...response.data.settings,
             looks: response.data.settings.looks?.map(look => ({
@@ -66,6 +74,13 @@ const Settings = ({ token }) => {
               link: {
                 ...look.link,
                 _type: look.link.productId ? 'product' : 'category'
+              }
+            })) || [],
+            trends: response.data.settings.trends?.map(trend => ({
+              ...trend,
+              link: {
+                ...trend.link,
+                _type: trend.link.productId ? 'product' : 'category'
               }
             })) || []
           }
@@ -121,9 +136,11 @@ const Settings = ({ token }) => {
     heroFiles,
     bannerFile,
     lookFiles,
+    trendFiles,
     handleHeroImagesChange,
     handleBannerImageChange,
-    handleLookImageChange
+    handleLookImageChange,
+    handleTrendImageChange
   } = useImageUpload()
 
   const handleSubmit = async (e) => {
@@ -170,6 +187,22 @@ const Settings = ({ token }) => {
         }
       }))
       formData.append('looks', JSON.stringify(cleanedLooks))
+
+      // Handle trends data - clean up internal _type markers
+      const cleanedTrends = settings.trends.map(trend => ({
+        ...trend,
+        link: {
+          productId: trend.link.productId || '',
+          category: trend.link.category || '',
+          subcategory: trend.link.subcategory || '',
+          subsubcategory: trend.link.subsubcategory || ''
+          // Remove _type marker - it's only for UI
+        }
+      }))
+      formData.append('trends', JSON.stringify(cleanedTrends))
+
+      // Handle section visibility settings
+      formData.append('sectionVisibility', JSON.stringify(settings.sectionVisibility))
       
       // Handle image uploads
       heroFiles.forEach(file => {
@@ -184,6 +217,11 @@ const Settings = ({ token }) => {
       // Handle look images
       Object.entries(lookFiles).forEach(([index, file]) => {
         formData.append(`look_${index}`, file)
+      })
+
+      // Handle trend images
+      Object.entries(trendFiles).forEach(([index, file]) => {
+        formData.append(`trend_${index}`, file)
       })
 
       const response = await axios.put(`${backendUrl}/api/settings`, formData, {
@@ -202,6 +240,13 @@ const Settings = ({ token }) => {
             link: {
               ...look.link,
               _type: look.link.productId ? 'product' : 'category'
+            }
+          })) || [],
+          trends: response.data.settings.trends?.map(trend => ({
+            ...trend,
+            link: {
+              ...trend.link,
+              _type: trend.link.productId ? 'product' : 'category'
             }
           })) || []
         }
@@ -288,6 +333,22 @@ const Settings = ({ token }) => {
           categories={categories}
           backendUrl={backendUrl}
           token={token}
+        />
+
+        <TrendsSettings
+          settings={settings}
+          onSettingsChange={setSettings}
+          trendFiles={trendFiles}
+          onTrendImageChange={handleTrendImageChange}
+          products={products}
+          categories={categories}
+          backendUrl={backendUrl}
+          token={token}
+        />
+
+        <SectionVisibilitySettings
+          settings={settings}
+          onSettingsChange={setSettings}
         />
         
         <div className="flex justify-end">

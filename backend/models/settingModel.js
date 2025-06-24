@@ -37,7 +37,22 @@ const settingSchema = new mongoose.Schema({
       subcategory: { type: String },
       subsubcategory: { type: String }
     }
-  }]
+  }],
+  trends: [{
+    image: { type: String, required: true },
+    label: { type: String, default: 'Trending Now' },
+    link: {
+      productId: { type: String },
+      category: { type: String },
+      subcategory: { type: String },
+      subsubcategory: { type: String }
+    }
+  }],
+  sectionVisibility: {
+    showNewLook: { type: Boolean, default: true },
+    showTrends: { type: Boolean, default: true }
+  }
+  
 }, {
   timestamps: true
 })

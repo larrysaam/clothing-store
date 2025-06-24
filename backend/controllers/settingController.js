@@ -36,6 +36,13 @@ const cleanupTempFiles = async (files) => {
         await cleanup(files[key][0])
       }
     })
+
+    // Clean up trend image files
+    Object.keys(files).forEach(async (key) => {
+      if (key.startsWith('trend_')) {
+        await cleanup(files[key][0])
+      }
+    })
   } catch (error) {
     console.error('Cleanup error:', error)
   }
@@ -96,6 +103,20 @@ export const updateSettings = async (req, res) => {
         : formData.looks
     }
 
+    // Handle trends data
+    if (formData.trends) {
+      updateData.trends = typeof formData.trends === 'string'
+        ? JSON.parse(formData.trends)
+        : formData.trends
+    }
+
+    // Handle section visibility settings
+    if (formData.sectionVisibility) {
+      updateData.sectionVisibility = typeof formData.sectionVisibility === 'string'
+        ? JSON.parse(formData.sectionVisibility)
+        : formData.sectionVisibility
+    }
+
     // Handle file uploads
     if (req.files) {
       // Upload banner to Cloudinary
@@ -144,8 +165,34 @@ export const updateSettings = async (req, res) => {
         }
         updateData.looks[index].image = lookResult.secure_url
       }
+
+      // Handle trend images - upload to Cloudinary
+      const trendImageUploads = []
+      Object.keys(req.files).forEach(key => {
+        if (key.startsWith('trend_')) {
+          const index = key.split('_')[1]
+          trendImageUploads.push({ index, file: req.files[key][0] })
+        }
+      })
+
+      // Upload trend images to Cloudinary
+      for (const { index, file } of trendImageUploads) {
+        const trendResult = await cloudinary.uploader.upload(file.path, {
+          resource_type: 'image',
+          folder: 'settings/trends'
+        })
+
+        if (!updateData.trends) {
+          updateData.trends = []
+        }
+        if (!updateData.trends[index]) {
+          updateData.trends[index] = {}
+        }
+        updateData.trends[index].image = trendResult.secure_url
+      }
     }
 
+    
     const settings = await Setting.findOneAndUpdate(
       {},
       { $set: updateData },
@@ -303,6 +350,60 @@ export const deleteLook = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to delete look'
+    });
+  }
+};
+
+export const deleteTrend = async (req, res) => {
+  try {
+    const { trendIndex } = req.params;
+
+    // Get current settings
+    const currentSettings = await Setting.findOne();
+    if (!currentSettings || !currentSettings.trends || !currentSettings.trends[trendIndex]) {
+      return res.status(404).json({
+        success: false,
+        message: 'Trend not found'
+      });
+    }
+
+    const trendToDelete = currentSettings.trends[trendIndex];
+
+    // Delete image from Cloudinary if it exists
+    if (trendToDelete.image) {
+      try {
+        const publicId = getCloudinaryPublicId(trendToDelete.image);
+        if (publicId) {
+          await cloudinary.uploader.destroy(publicId);
+          console.log(`Deleted image from Cloudinary: ${publicId}`);
+        }
+      } catch (cloudinaryError) {
+        console.error('Error deleting from Cloudinary:', cloudinaryError);
+        // Continue with database deletion even if Cloudinary deletion fails
+      }
+    }
+
+    // Remove the trend from the array
+    const updatedTrends = [...currentSettings.trends];
+    updatedTrends.splice(trendIndex, 1);
+
+    // Update settings in database
+    const settings = await Setting.findOneAndUpdate(
+      {},
+      { $set: { trends: updatedTrends } },
+      { new: true, upsert: true }
+    );
+
+    res.json({
+      success: true,
+      settings,
+      message: 'Trend deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete trend error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete trend'
     });
   }
 };
