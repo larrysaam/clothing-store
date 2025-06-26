@@ -23,5 +23,24 @@ const preorderSchema = new mongoose.Schema({
     timestamps: true
     })
 
+// Add a new schema for preorder cart items (separate from completed preorders)
+const preorderCartSchema = new mongoose.Schema({
+    user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true,
+        unique: true
+    },
+    cartData: {
+        type: Object,
+        default: {}
+    }
+}, {
+    timestamps: true
+})
+
 const PreOrder = mongoose.model('PreOrder', preorderSchema)
+const PreorderCart = mongoose.model('PreorderCart', preorderCartSchema)
+
 export default PreOrder
+export { PreorderCart }

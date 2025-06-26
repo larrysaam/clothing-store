@@ -37,7 +37,7 @@ const Hero = () => {
   }
 
   return (
-    <div className='relative w-full h-[500px] sm:h-[600px] lg:h-[700px] overflow-hidden'>
+    <div className='relative w-full h-[700px] sm:h-[600px] lg:h-[700px] overflow-hidden'>
       {/* Background Image */}
       <img
         src={images[currentIndex]}

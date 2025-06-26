@@ -22,6 +22,8 @@ const ShopContextProvider = (props) => {
 
   // Храним локальное состояние корзины
   const [cartItems, setCartItems] = useState({});
+  // Храним локальное состояние корзины предзаказов
+  const [preorderCartItems, setPreorderCartItems] = useState({});
 
   // Get token from localStorage on mount
   useEffect(() => {
@@ -60,14 +62,42 @@ const ShopContextProvider = (props) => {
     },
   });
 
+  // Load user preorder cart if token exists
+  const {
+    data: preorderCartData,
+    isLoading: isPreorderCartLoading,
+    refetch: refetchPreorderCart,
+  } = useQuery({
+    queryKey: ["preorderCart"],
+    queryFn: async () => {
+      const { data } = await axios.post(`${backendUrl}/api/preorder/cart/get`, {}, {
+        headers: { token },
+      });
+      return data?.cartData || {};
+    },
+    enabled: !!token,
+    onSuccess: (data) => {
+      setPreorderCartItems(data || {});
+    },
+    onError: () => {
+      toast.error("Failed to load preorder cart.");
+    },
+  });
+
   // Refetch cart after login/logout
   useEffect(() => {
     if (token) {
       refetch().then((res) => {
         setCartItems(res.data || {});
       });
+      refetchPreorderCart().then((res) => {
+        setPreorderCartItems(res.data || {});
+      });
+    } else {
+      setCartItems({});
+      setPreorderCartItems({});
     }
-  }, [token, refetch]);
+  }, [token]); // Remove refetch dependencies to prevent automatic refetching
 
   // Add item to cart
   const addToCartMutation = useMutation({
@@ -116,6 +146,48 @@ const ShopContextProvider = (props) => {
     addToCartMutation.mutate({ itemId, size, color });
   };
 
+  // Add item to preorder cart
+  const addToPreorderCartMutation = useMutation({
+    mutationFn: async ({ itemId, size, color }) => {
+      await axios.post(
+        `${backendUrl}/api/preorder/cart/add`,
+        { itemId, size, color },
+        { headers: { token } }
+      );
+    },
+    onMutate: ({ itemId, size, color }) => {
+      if (!size) {
+        toast.error("Select Product Size");
+        return;
+      }
+
+      const updatedCart = structuredClone(preorderCartItems);
+      if (!updatedCart[itemId]) updatedCart[itemId] = {};
+
+      // Create a unique key combining size and color
+      const cartKey = color ? `${size}-${color}` : size;
+      updatedCart[itemId][cartKey] = (updatedCart[itemId][cartKey] || 0) + 1;
+      setPreorderCartItems(updatedCart);
+    },
+    onSuccess: () => {
+      toast.success("Item added to preorder cart!");
+      // Play notification sound
+      notificationSound.play().catch(e => console.log('Sound play failed:', e));
+    },
+    onError: (error) => toast.error(error.response?.data?.message || error.message || "Failed to add item to preorder cart."),
+    onSettled: () => {
+      queryClient.invalidateQueries(["preorderCart"]);
+    },
+  });
+
+  const addToPreorderCart = (itemId, size, color) => {
+    if (!size) {
+      toast.error("Select Product Size");
+      return;
+    }
+    addToPreorderCartMutation.mutate({ itemId, size, color });
+  };
+
   // Update cart item quantity
   const updateQuantityMutation = useMutation({
     mutationFn: async ({ itemId, size, quantity, color }) => {
@@ -147,28 +219,79 @@ const ShopContextProvider = (props) => {
     },
   });
 
-  const updateQuantity = (productId, cartKey, quantity, newCartItems = null) => {
-    setCartItems(prev => {
-      if (newCartItems) {
-        return newCartItems
+  // Update preorder cart item quantity
+  const updatePreorderQuantityMutation = useMutation({
+    mutationFn: async ({ itemId, size, quantity, color }) => {
+      const response = await axios.post(
+        `${backendUrl}/api/preorder/cart/update`,
+        { itemId, size, quantity, color },
+        { headers: { token } }
+      );
+
+      // Ensure the response indicates success
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to update preorder cart');
       }
-      const updated = {
-        ...prev,
-        [productId]: {
-          ...prev[productId],
-          [cartKey]: quantity
-        }
-      }
-      
+
+      return response.data;
+    },
+    onMutate: ({ itemId, size, quantity, color }) => {
+      const updatedCart = structuredClone(preorderCartItems);
+
+      if (!updatedCart[itemId]) updatedCart[itemId] = {};
+      // color here is actually colorHex from the cartKey
+      const cartKey = color ? `${size}-${color}` : size;
+
       if (quantity === 0) {
-        delete updated[productId][cartKey];
-        if (Object.keys(updated[productId]).length === 0) {
-          delete updated[productId];
+        delete updatedCart[itemId][cartKey];
+        if (Object.keys(updatedCart[itemId]).length === 0) {
+          delete updatedCart[itemId];
         }
+      } else {
+        updatedCart[itemId][cartKey] = quantity;
       }
-      
-      return updated;
-    })
+
+      setPreorderCartItems(updatedCart);
+
+      // Return context for potential rollback
+      return { previousCart: preorderCartItems };
+    },
+    onError: (error, _, context) => {
+      // Rollback optimistic update on error
+      if (context?.previousCart) {
+        setPreorderCartItems(context.previousCart);
+      }
+      toast.error(error.message);
+    },
+    onSuccess: () => {
+      // Force refetch to ensure we have the latest data
+      refetchPreorderCart();
+    },
+  });
+
+  const updateQuantity = (productId, cartKey, quantity, newCartItems = null) => {
+    if (newCartItems) {
+      setCartItems(newCartItems);
+      return;
+    }
+
+    // Extract size and color from cartKey
+    const [size, color] = cartKey.includes('-') ? cartKey.split('-') : [cartKey, undefined];
+    updateQuantityMutation.mutate({ itemId: productId, size, quantity, color });
+  }
+
+  const updatePreorderQuantity = (productId, cartKey, quantity, newCartItems = null) => {
+    if (newCartItems) {
+      setPreorderCartItems(newCartItems);
+      return;
+    }
+
+    // Extract size and color from cartKey
+    // cartKey format: "size" or "size-colorHex"
+    const [size, colorHex] = cartKey.includes('-') ? cartKey.split('-') : [cartKey, undefined];
+
+    // Pass colorHex as color to maintain consistency with backend
+    updatePreorderQuantityMutation.mutate({ itemId: productId, size, quantity, color: colorHex });
   }
 
   // Reset cart (e.g., after purchase)
@@ -201,9 +324,37 @@ const ShopContextProvider = (props) => {
     }, 0);
   };
 
+  // Preorder cart utility functions
+  const getPreorderCartCount = () => {
+    return Object.values(preorderCartItems).reduce(
+      (total, cartKeys) =>
+        total + Object.values(cartKeys).reduce((sum, qty) => sum + qty, 0),
+      0
+    );
+  };
+
+  const getPreorderCartAmount = () => {
+    return Object.entries(preorderCartItems).reduce((totalAmount, [itemId, cartKeys]) => {
+      const itemInfo = products.find((product) => product._id === itemId);
+      if (!itemInfo) return totalAmount;
+      return (
+        totalAmount +
+        Object.values(cartKeys).reduce(
+          (sum, qty) => sum + itemInfo.price * qty,
+          0
+        )
+      );
+    }, 0);
+  };
+
+  const resetPreorderCart = () => {
+    setPreorderCartItems({});
+    queryClient.removeQueries(["preorderCart"]);
+  };
+
   const value = {
     products,
-    isLoading: isProductsLoading || isCartLoading,
+    isLoading: isProductsLoading || isCartLoading || isPreorderCartLoading,
     currency,
     deliveryFee,
     search,
@@ -217,6 +368,15 @@ const ShopContextProvider = (props) => {
     updateQuantity,
     getCartAmount,
     resetCart,
+    // Preorder cart functions
+    preorderCartItems,
+    setPreorderCartItems,
+    addToPreorderCart,
+    getPreorderCartCount,
+    updatePreorderQuantity,
+    getPreorderCartAmount,
+    resetPreorderCart,
+    refetchPreorderCart,
     navigate,
     backendUrl,
     token,

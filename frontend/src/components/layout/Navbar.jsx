@@ -23,8 +23,8 @@ const Navbar = () => {
     Kids: { subcategories: [] }
   })
   const [isLoading, setIsLoading] = useState(true)
-  const { 
-    showSearch, setShowSearch, getCartCount, navigate, token, setToken,
+  const {
+    showSearch, setShowSearch, getCartCount, getPreorderCartCount, navigate, token, setToken,
     cartItems, products, currency, getCartAmount, updateQuantity // Added for mini-cart
   } = useContext(ShopContext)
 
@@ -313,7 +313,7 @@ const Navbar = () => {
                           text-gray-600'
                   >
                     <p
-                      onClick={() => toast.info(t('not_implemented'))}
+                      onClick={() => navigate('/my-profile')}
                       className='cursor-pointer hover:text-black hover:bg-gray-100 duration-300 py-2 px-5'
                     >
                       {t('my_profile')}
@@ -345,12 +345,12 @@ const Navbar = () => {
                 className='relative transition-all duration-300 group-hover:scale-[115%]' // Slightly less scale on hover for group
               >
                 <img src={assets.cart} alt='cartIcon' className='w-5 min-w-5 ' />
-                {getCartCount() > 0 && (
+                {(getCartCount() + getPreorderCartCount()) > 0 && (
                   <p
-                    className='absolute -right-[5px] -bottom-[5px] w-4 text-center 
+                    className='absolute -right-[5px] -bottom-[5px] w-4 text-center
                       leading-4 bg-black text-white aspect-square rounded-full text-[10px]'
                   >
-                    {getCartCount()}
+                    {getCartCount() + getPreorderCartCount()}
                   </p>
                 )}
               </button>

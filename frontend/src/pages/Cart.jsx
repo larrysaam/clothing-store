@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useState } from 'react'
 import { ShopContext } from '@/context/ShopContext'
 import Title from '@/components/Title'
 import { assets } from '@/assets/assets'
-import CartTotal from '@/features/shared/CartTotal'
+
 import { Link } from 'react-router-dom'
 import NumberFlow from '@number-flow/react'
 import {
@@ -15,14 +15,23 @@ import {
 
 const Cart = () => {
 
-  const { products, cartItems, token, updateQuantity, navigate } = useContext(ShopContext)
+  const {
+    products,
+    cartItems,
+    preorderCartItems,
+    token,
+    updateQuantity,
+    updatePreorderQuantity,
+    navigate
+  } = useContext(ShopContext)
   const [ cartData, setCartData ] = useState([])
+  const [ preorderCartData, setPreorderCartData ] = useState([])
   const [inventoryErrors, setInventoryErrors] = useState({})
   const [hasStockError, setHasStockError] = useState(false)
+  const [activeFilter, setActiveFilter] = useState('all') // 'all', 'regular', 'preorder'
   
   useEffect(() => {
-
-    if (products.length > 0) {
+    if (products.length > 0 && cartItems) {
       const tempData = [];
 
       for (const items in cartItems) {
@@ -30,12 +39,12 @@ const Cart = () => {
           if (cartItems[items][cartKey] > 0) {
             // Parse the cartKey to extract size and color (color is hex code)
             const [size, colorHex] = cartKey.includes('-') ? cartKey.split('-') : [cartKey, undefined];
-            
+
             // Find the color name from the hex code
             const product = products.find(p => p._id === items);
-            const colorData = colorHex && product?.colors ? 
+            const colorData = colorHex && product?.colors ?
               product.colors.find(c => c.colorHex === colorHex) : null;
-            
+
             tempData.push({
               id: items,
               cartKey: cartKey,
@@ -52,25 +61,55 @@ const Cart = () => {
 
   }, [cartItems, products])
 
+  // Process preorder cart data
+  useEffect(() => {
+    if (products.length > 0 && preorderCartItems) {
+      const tempData = [];
+
+      for (const items in preorderCartItems) {
+        for (const cartKey in preorderCartItems[items]) {
+          if (preorderCartItems[items][cartKey] > 0) {
+            // Parse the cartKey to extract size and color (color is hex code)
+            const [size, colorHex] = cartKey.includes('-') ? cartKey.split('-') : [cartKey, undefined];
+
+            // Find the color name from the hex code
+            const product = products.find(p => p._id === items);
+            const colorData = colorHex && product?.colors ?
+              product.colors.find(c => c.colorHex === colorHex) : null;
+
+            tempData.push({
+              id: items,
+              cartKey: cartKey,
+              size: size,
+              color: colorData?.colorName || undefined, // Store color name for display
+              colorHex: colorHex, // Store hex code for matching
+              quantity: preorderCartItems[items][cartKey]
+            })
+          }
+        }
+      }
+      setPreorderCartData(tempData)
+    }
+  }, [preorderCartItems, products])
+
   const validateInventory = (productId, size, colorHex, quantity) => {
     const product = products.find(p => p._id === productId)
     let sizeData = null;
-    
+
+    // Check stock based on whether item has color or not
     if (colorHex && product?.colors) {
-      // Find the color first by hex code, then the size within that color
       const colorData = product.colors.find(c => c.colorHex === colorHex)
       sizeData = colorData?.sizes?.find(s => s.size === size)
     } else if (product?.sizes) {
-      // Fallback to product-level sizes if no color specified
       sizeData = product.sizes.find(s => s.size === size)
     }
-    
+
     const errorKey = `${productId}-${size}-${colorHex || 'default'}`;
-    
-    if (sizeData && quantity > sizeData.quantity) {
+
+    if (!sizeData || quantity > sizeData.quantity) {
       setInventoryErrors(prev => ({
         ...prev,
-        [errorKey]: `Only ${sizeData.quantity} items available`
+        [errorKey]: `Only ${sizeData?.quantity || 0} items available`
       }))
       setHasStockError(true)
     } else {
@@ -92,15 +131,15 @@ const Cart = () => {
     }
   }, [cartData, products])
 
-  if (cartData.length == 0) {
-    return ( 
+  if (cartData.length === 0 && preorderCartData.length === 0) {
+    return (
       <div className='px-4 sm:px-14 min-h-[50vh] flex flex-col items-center'>
         <div className='text-2xl mb-3 self-start'>
           <Title text1='YOUR' text2='CART'/>
         </div>
         <div className='my-auto text-lg flex flex-col items-center'>
           <p>Your cart is empty! Try to add some items first.</p>
-          <Link to='/collection' 
+          <Link to='/collection'
             className='bg-black text-white mt-4 px-4 py-2 w-fit transistion-all duration-500 hover:bg-slate-700'>
             Go shopping!
           </Link>
@@ -202,15 +241,92 @@ const Cart = () => {
   };
 
   return (
-    <div className='px-4 sm:px-14 border-t pt-14 animate-fade animate-duration-500'>
-      <div className='text-2xl mb-3'>
+    <div className='px-3 sm:px-6 lg:px-14 border-t pt-8 sm:pt-14 animate-fade animate-duration-500'>
+      <div className='text-xl sm:text-2xl mb-4 sm:mb-6'>
         <Title text1='YOUR' text2='CART'/>
       </div>
 
-      <div>
+      {/* Filter Tabs */}
+      <div className="flex justify-center mb-8">
+        <div className="flex bg-gray-100 rounded-lg p-1">
+          <button
+            onClick={() => setActiveFilter('all')}
+            className={`px-6 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+              activeFilter === 'all'
+                ? 'bg-white text-black shadow-sm'
+                : 'text-gray-600 hover:text-gray-800'
+            }`}
+          >
+            All Items ({cartData.length + preorderCartData.length})
+          </button>
+          <button
+            onClick={() => setActiveFilter('regular')}
+            className={`px-6 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+              activeFilter === 'regular'
+                ? 'bg-white text-black shadow-sm'
+                : 'text-gray-600 hover:text-gray-800'
+            }`}
+          >
+            Regular Orders ({cartData.length})
+          </button>
+          <button
+            onClick={() => setActiveFilter('preorder')}
+            className={`px-6 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+              activeFilter === 'preorder'
+                ? 'bg-white text-blue-600 shadow-sm'
+                : 'text-gray-600 hover:text-blue-600'
+            }`}
+          >
+            Preorders ({preorderCartData.length})
+          </button>
+        </div>
+      </div>
+
+      {/* Section Status Header */}
+      {(cartData.length > 0 || preorderCartData.length > 0) && (
+        <div className="mb-6 text-center">
+          <p className="text-sm text-gray-600">
+            {activeFilter === 'all' && 'Showing all items in your cart'}
+            {activeFilter === 'regular' && 'Showing regular orders only'}
+            {activeFilter === 'preorder' && 'Showing preorders only'}
+          </p>
+        </div>
+      )}
+
+      {/* Regular Cart Section */}
+      {cartData.length > 0 && (activeFilter === 'all' || activeFilter === 'regular') && (
+        <div className="mb-8 border rounded-lg p-4">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold text-gray-800">
+              Regular Orders
+              {activeFilter === 'regular' && (
+                <span className="ml-2 text-sm font-normal text-gray-600">
+                  ({cartData.length} items)
+                </span>
+              )}
+            </h3>
+            <div className="text-right">
+              <p className="text-sm text-gray-600">Subtotal:
+                <NumberFlow
+                  value={cartData?.reduce((total, item) => {
+                    const product = products.find(p => p._id === item.id);
+                    return total + (product?.price || 0) * (item.quantity || 0);
+                  }, 0) || 0}
+                  format={{
+                    style: 'currency',
+                    currency: import.meta.env.VITE_CURRENCY || 'EUR',
+                    maximumFractionDigits: 2
+                  }}
+                  className="ml-2 font-medium"
+                />
+              </p>
+            </div>
+          </div>
+          <div>
         {
           cartData.map((item, index) => {
             const productData = products.find((product) =>  product._id === item.id)
+            if (!productData) return null;
             return (
               <div 
                 key={index} 
@@ -427,27 +543,333 @@ const Cart = () => {
             )
           })
         }
-      </div>
+          </div>
 
+          {/* Regular Cart Checkout Button */}
+          <div className="mt-6 pt-4 border-t">
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-sm text-gray-600">
+                  Total: <NumberFlow
+                    value={(cartData?.reduce((total, item) => {
+                      const product = products.find(p => p._id === item.id);
+                      return total + (product?.price || 0) * (item.quantity || 0);
+                    }, 0) || 0) + (cartData.length > 0 ? 10 : 0)} // Add delivery fee if items exist
+                    format={{
+                      style: 'currency',
+                      currency: import.meta.env.VITE_CURRENCY || 'EUR',
+                      maximumFractionDigits: 2
+                    }}
+                    className="font-semibold"
+                  />
+                </p>
+                <p className="text-xs text-gray-500">Includes €10 delivery fee</p>
+              </div>
+              <button
+                onClick={() => {
+                  if (!token) {
+                    navigate('/login', { state: { from: '/cart' } });
+                    return;
+                  }
+                  // Navigate to checkout with regular cart only
+                  navigate('/place-order', { state: { cartType: 'regular' } });
+                }}
+                className={`bg-black text-white text-sm px-6 py-3 rounded-full transition-all duration-500 hover:bg-gray-800 ${activeFilter === 'regular' ? 'w-full text-base py-4' : ''}`}
+              >
+                {activeFilter === 'regular' ? 'Proceed to Checkout' : 'Checkout Regular Orders'}
+                {activeFilter === 'regular' && (
+                  <div className="text-xs mt-1">
+                    {cartData.length} items • Total: €{((cartData?.reduce((total, item) => {
+                      const product = products.find(p => p._id === item.id);
+                      return total + (product?.price || 0) * (item.quantity || 0);
+                    }, 0) || 0) + 10).toFixed(2)}
+                  </div>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
-      <div className='flex justify-end my-20'>
-        <div className='w-full sm:w-[450px]'>
-          <CartTotal/>
-          <div className='w-full text-end'>
-            <button 
-              onClick={() => (token ? navigate('/place-order') : navigate('/login', { state: { from: '/cart' } }))} 
-              disabled={hasStockError}
-              className={`bg-black text-white text-sm my-8 px-4 py-3 transition-all duration-500 
-                ${hasStockError 
-                  ? 'opacity-50 cursor-not-allowed' 
-                  : 'hover:bg-slate-700'
-                }`}
+      {/* Preorder Cart Section */}
+      {preorderCartData.length > 0 && (activeFilter === 'all' || activeFilter === 'preorder') && (
+        <div className="mb-8 border border-blue-200 rounded-lg p-4 bg-blue-50">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold text-blue-800">
+              Preorders
+              {activeFilter === 'preorder' && (
+                <span className="ml-2 text-sm font-normal text-blue-600">
+                  ({preorderCartData.length} items)
+                </span>
+              )}
+            </h3>
+            <div className="text-right">
+              <p className="text-sm text-blue-700">Subtotal:
+                <NumberFlow
+                  value={preorderCartData?.reduce((total, item) => {
+                    const product = products.find(p => p._id === item.id);
+                    return total + (product?.price || 0) * (item.quantity || 0);
+                  }, 0) || 0}
+                  format={{
+                    style: 'currency',
+                    currency: import.meta.env.VITE_CURRENCY || 'EUR',
+                    maximumFractionDigits: 2
+                  }}
+                  className="ml-2 font-medium"
+                />
+              </p>
+            </div>
+          </div>
+          <div>
+        {
+          preorderCartData.map((item, index) => {
+            const productData = products.find((product) =>  product._id === item.id)
+            if (!productData) return null;
+            return (
+              <div
+                key={`preorder-${index}`}
+                className='relative py-4 border-t last:border-y text-gray-700
+                  grid grid-cols-1 sm:grid-cols-[3fr_1fr_0.5fr_0.5fr]
+                  items-start sm:items-center gap-4 bg-white rounded-md'
+              >
+                {/* Product info section */}
+                <div className='flex items-start gap-4 sm:gap-6'>
+                  {/* Make image clickable */}
+                  <div
+                    onClick={() => navigate(`/product/${item.id}`)}
+                    className="cursor-pointer hover:opacity-80 transition-opacity relative"
+                  >
+                    <img
+                      className='w-24 h-24 sm:w-32 sm:h-32 object-cover rounded-md'
+                      src={(() => {
+                        // Show color-specific image if available
+                        if (item.colorHex && productData.colors) {
+                          const colorData = productData.colors.find(c => c.colorHex === item.colorHex);
+                          if (colorData?.colorImages && colorData.colorImages.length > 0) {
+                            return colorData.colorImages[0];
+                          }
+                        }
+                        // Fallback to main product image
+                        return productData.image[0];
+                      })()}
+                      alt={productData.name}
+                    />
+                    {/* Preorder badge */}
+                    <div className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs px-2 py-1 rounded-full">
+                      Preorder
+                    </div>
+                  </div>
+
+                  <div className='flex-1'>
+                    <p
+                      onClick={() => navigate(`/product/${item.id}`)}
+                      className='text-sm sm:text-base font-medium cursor-pointer hover:text-blue-600 transition-colors'
+                    >
+                      {productData.name}
+                    </p>
+
+                    <div className='flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-5 mt-2'>
+                      <p className='text-sm text-gray-600'>
+                        <NumberFlow
+                          value={productData.price}
+                          format={{
+                            style: 'currency',
+                            currency: import.meta.env.VITE_CURRENCY || 'EUR',
+                            maximumFractionDigits: 2
+                          }}
+                        />
+                      </p>
+
+                      {/* Color and Size display */}
+                      <div className='flex items-center gap-3'>
+                        {item.color && (
+                          <div className='flex items-center gap-2'>
+                            <div
+                              className='w-4 h-4 rounded-full border border-gray-300'
+                              style={{ backgroundColor: item.colorHex }}
+                            ></div>
+                            <span className='text-sm text-gray-600'>{item.color}</span>
+                          </div>
+                        )}
+
+                        {item.size !== 'N/A' && (
+                          <div className='px-2 py-1 bg-gray-100 rounded text-xs text-gray-600'>
+                            {item.size}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quantity controls */}
+                <div className='flex items-center gap-2 sm:justify-center'>
+                  <button
+                    onClick={() => updatePreorderQuantity(item.id, item.cartKey, item.quantity - 1)}
+                    className='w-8 h-8 flex items-center justify-center border border-gray-300 rounded-full hover:bg-gray-100 transition-colors'
+                  >
+                    -
+                  </button>
+                  <span className='w-8 text-center text-sm'>{item.quantity}</span>
+                  <button
+                    onClick={() => updatePreorderQuantity(item.id, item.cartKey, item.quantity + 1)}
+                    className='w-8 h-8 flex items-center justify-center border border-gray-300 rounded-full hover:bg-gray-100 transition-colors'
+                  >
+                    +
+                  </button>
+                </div>
+
+                {/* Total price */}
+                <div className='text-center'>
+                  <NumberFlow
+                    value={productData.price * item.quantity}
+                    format={{
+                      style: 'currency',
+                      currency: import.meta.env.VITE_CURRENCY || 'EUR',
+                      maximumFractionDigits: 2
+                    }}
+                    className='text-sm font-medium'
+                  />
+                </div>
+
+                {/* Remove button */}
+                <div className='flex justify-center'>
+                  <button
+                    onClick={()=>updatePreorderQuantity(item.id, item.cartKey, 0)}
+                    className='mx-auto p-1 hover:bg-red-50 rounded-full transition-colors'
+                  >
+                    <img
+                      src={assets.deleteIcon}
+                      alt='Remove item'
+                      className='w-4 sm:w-5 cursor-pointer hover:scale-110 transition-all duration-300'
+                    />
+                  </button>
+                </div>
+              </div>
+            )
+          })
+        }
+          </div>
+
+          {/* Preorder Cart Checkout Button */}
+          <div className="mt-6 pt-4 border-t border-blue-200">
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-sm text-blue-700">
+                  Total: <NumberFlow
+                    value={(preorderCartData?.reduce((total, item) => {
+                      const product = products.find(p => p._id === item.id);
+                      return total + (product?.price || 0) * (item.quantity || 0);
+                    }, 0) || 0) + (preorderCartData.length > 0 ? 10 : 0)} // Add delivery fee if items exist
+                    format={{
+                      style: 'currency',
+                      currency: import.meta.env.VITE_CURRENCY || 'EUR',
+                      maximumFractionDigits: 2
+                    }}
+                    className="font-semibold"
+                  />
+                </p>
+                <p className="text-xs text-blue-600">Includes €10 delivery fee</p>
+              </div>
+              <button
+                onClick={() => {
+                  if (!token) {
+                    navigate('/login', { state: { from: '/cart' } });
+                    return;
+                  }
+                  // Navigate to checkout with preorder cart only
+                  navigate('/place-order', { state: { cartType: 'preorder' } });
+                }}
+                className={`bg-blue-600 text-white text-sm px-6 py-3 rounded-full transition-all duration-500 hover:bg-blue-700
+                  ${activeFilter === 'preorder' ? 'w-full text-base py-4' : ''}`}
+              >
+                {activeFilter === 'preorder' ? 'Proceed to Checkout' : 'Checkout Preorders'}
+                {activeFilter === 'preorder' && (
+                  <div className="text-xs mt-1">
+                    {preorderCartData.length} items • Total: €{((preorderCartData?.reduce((total, item) => {
+                      const product = products.find(p => p._id === item.id);
+                      return total + (product?.price || 0) * (item.quantity || 0);
+                    }, 0) || 0) + 10).toFixed(2)}
+                  </div>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Show message based on filter and cart state */}
+      {(() => {
+        const showRegular = activeFilter === 'all' || activeFilter === 'regular';
+        const showPreorder = activeFilter === 'all' || activeFilter === 'preorder';
+        const hasRegularItems = cartData.length > 0 && showRegular;
+        const hasPreorderItems = preorderCartData.length > 0 && showPreorder;
+
+        // Show empty message if no items are visible based on current filter
+        if (!hasRegularItems && !hasPreorderItems) {
+          let emptyMessage = "Your cart is empty";
+          if (activeFilter === 'regular' && cartData.length === 0) {
+            emptyMessage = "No regular orders in your cart";
+          } else if (activeFilter === 'preorder' && preorderCartData.length === 0) {
+            emptyMessage = "No preorders in your cart";
+          } else if (activeFilter === 'all' && cartData.length === 0 && preorderCartData.length === 0) {
+            emptyMessage = "Your cart is empty";
+          }
+
+          return (
+            <div className="text-center py-20">
+              <p className="text-gray-500 text-lg">{emptyMessage}</p>
+              <button
+                onClick={() => navigate('/collection')}
+                className="mt-4 bg-black text-white px-6 py-3 rounded-full hover:bg-gray-800 transition-colors"
+              >
+                Continue Shopping
+              </button>
+            </div>
+          );
+        }
+        return null;
+      })()}
+
+      {/* Combined Checkout Section - Only show when viewing all items and both carts have items */}
+      {activeFilter === 'all' && cartData.length > 0 && preorderCartData.length > 0 && (
+        <div className="mt-8 p-6 bg-gray-50 rounded-lg border">
+          <h3 className="text-lg font-semibold mb-4 text-center">Choose Checkout Option</h3>
+          <p className="text-sm text-gray-600 text-center mb-6">
+            You have both regular orders and preorders. Please choose which type to checkout first.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <button
+              onClick={() => {
+                navigate('/place-order', { state: { cartType: 'regular' } });
+              }}
+              className="flex-1 sm:flex-none bg-black text-white px-8 py-3 rounded-full transition-all duration-500 hover:bg-gray-800 text-center"
             >
-              Proceed to checkout
+              Checkout Regular Orders
+              <span className="block text-xs mt-1">
+                ({cartData.length} items - €{(cartData?.reduce((total, item) => {
+                  const product = products.find(p => p._id === item.id);
+                  return total + (product?.price || 0) * (item.quantity || 0);
+                }, 0) || 0).toFixed(2)})
+              </span>
+            </button>
+            <button
+              onClick={() => {
+                navigate('/place-order', { state: { cartType: 'preorder' } });
+              }}
+              className="flex-1 sm:flex-none bg-blue-600 text-white px-8 py-3 rounded-full transition-all duration-500 hover:bg-blue-700 text-center"
+            >
+              Checkout Preorders
+              <span className="block text-xs mt-1">
+                ({preorderCartData.length} items - €{(preorderCartData?.reduce((total, item) => {
+                  const product = products.find(p => p._id === item.id);
+                  return total + (product?.price || 0) * (item.quantity || 0);
+                }, 0) || 0).toFixed(2)})
+              </span>
             </button>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Related products section - ADDING THIS NEW SECTION */}
       <div className="mt-20 border-t pt-10">

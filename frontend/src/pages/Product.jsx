@@ -17,7 +17,7 @@ const Product = () => {
 
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const { productId } = useParams();
-  const { products, currency, addToCart, token, navigate, isLoading } = useContext(ShopContext)
+  const { products, currency, addToCart, addToPreorderCart, token, navigate, isLoading } = useContext(ShopContext)
   const [productData, setProductData] = useState(null)
   const [activeImage, setActiveImage] = useState('')
   const [selectedColor, setSelectedColor] = useState(null)
@@ -210,6 +210,31 @@ const Product = () => {
     toast.success(`${productData?.name} (${selectedColor?.colorName}${sizeText}) added to cart!`);
   }
 
+  const handleAddToPreorderCart = () => {
+    if (!token) {
+      navigate('/login')
+      return
+    }
+    if (!selectedColor) {
+      toast.error('Please select a color')
+      return
+    }
+    if (hasRealSizes && !selectedSize) {
+      toast.error('Please select a size')
+      return
+    }
+
+    // Use selected size or 'N/A' for products without sizes
+    const sizeToUse = hasRealSizes ? selectedSize : 'N/A';
+
+    // Pass color hex code to preorder cart
+    addToPreorderCart(productData?._id, sizeToUse, selectedColor?.colorHex);
+
+    // Create appropriate success message
+    const sizeText = hasRealSizes ? `, ${sizeToUse}` : '';
+    toast.success(`${productData?.name} (${selectedColor?.colorName}${sizeText}) added to preorder cart!`);
+  }
+
   if (isLoading) {
     return <ProductSkeleton />
   }
@@ -260,12 +285,17 @@ const Product = () => {
               {productData?.label && productData.label !== '' && (
                 <span className={`
                   inline-block w-fit px-3 py-1 text-sm font-medium rounded-full
-                  ${productData.label === 'New model' 
-                    ? 'bg-blue-100 text-blue-800' 
+                  ${productData.label === 'New model'
+                    ? 'bg-blue-100 text-blue-800'
                     : 'bg-purple-100 text-purple-800'
                   }
                 `}>
                   {productData.label}
+                </span>
+              )}
+              {productData?.customLabel && productData.customLabel !== '' && (
+                <span className="inline-block w-fit px-3 py-1 text-sm font-medium rounded-full bg-green-100 text-green-800">
+                  {productData.customLabel}
                 </span>
               )}
             </div>
@@ -346,22 +376,22 @@ const Product = () => {
                 )}
 
                 {/* Stock indicator */}
-                {/* {selectedSize && availableQuantity > 0 && (
-                  <p className="text-sm text-green-600">
-                    {availableQuantity} {availableQuantity === 1 ? 'item' : 'items'} in stock
+                {selectedSize && availableQuantity > 0 && availableQuantity < 10 && (
+                  <p className="text-sm text-red-600 font-medium">
+                    Almost out of stock
                   </p>
-                )} */}
+                )}
               </div>
             )}
 
             {/* Stock indicator for products without sizes */}
-            {/* {selectedColor && !hasRealSizes && noSizeQuantity > 0 && (
+            {selectedColor && !hasRealSizes && noSizeQuantity > 0 && noSizeQuantity < 10 && (
               <div className='my-6 sm:my-8'>
-                <p className="text-sm text-green-600">
-                  {noSizeQuantity} {noSizeQuantity === 1 ? 'item' : 'items'} in stock
+                <p className="text-sm text-red-600 font-medium">
+                  Almost out of stock
                 </p>
               </div>
-            )} */}
+            )}
 
             {/* Selection prompt when no color is selected */}
             {!selectedColor && productData?.colors && productData.colors.length > 0 && (
@@ -374,26 +404,17 @@ const Product = () => {
             {/* Action Buttons */}
             <div className='w-full sm:w-auto fixed bottom-0 left-0 sm:relative p-4 sm:p-0 bg-white border-t sm:border-0 z-10'>
               {productData?.preorder ? (
-                hasPreordered ? (
-                  <button 
-                    disabled
-                    className='w-full sm:w-auto bg-gray-400 text-white px-6 sm:px-8 py-3 text-sm rounded-full cursor-not-allowed'
-                  >
-                    Preordered
-                  </button>
-                ) : (
-                  <button
-                    onClick={handlePreorder}
-                    disabled={!selectedColor || (hasRealSizes && !selectedSize) || (hasRealSizes ? availableQuantity === 0 : noSizeQuantity === 0)}
-                    className={`w-full sm:w-auto bg-blue-600 text-white px-6 sm:px-8 py-3 text-sm rounded-full transition-all ${
-                      (!selectedColor || (hasRealSizes && !selectedSize) || (hasRealSizes ? availableQuantity === 0 : noSizeQuantity === 0))
-                        ? 'opacity-50 cursor-not-allowed'
-                        : 'hover:bg-blue-700 active:bg-blue-800'
-                    }`}
-                  >
-                    Preorder Now
-                  </button>
-                )
+                <button
+                  onClick={handleAddToPreorderCart}
+                  disabled={!selectedColor || (hasRealSizes && !selectedSize) || (hasRealSizes ? availableQuantity === 0 : noSizeQuantity === 0)}
+                  className={`w-full sm:w-auto bg-blue-600 text-white px-6 sm:px-8 py-3 text-sm rounded-full transition-all ${
+                    (!selectedColor || (hasRealSizes && !selectedSize) || (hasRealSizes ? availableQuantity === 0 : noSizeQuantity === 0))
+                      ? 'opacity-50 cursor-not-allowed'
+                      : 'hover:bg-blue-700 active:bg-blue-800'
+                  }`}
+                >
+                  Add to Preorder Cart
+                </button>
               ) : (
                 <button
                   onClick={handleAddToCart}

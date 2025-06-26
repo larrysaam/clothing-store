@@ -10,6 +10,7 @@ import Cart from '@/pages/Cart';
 import Login from "@/pages/Login";
 import Placeorder from "@/pages/Placeorder";
 import Orders from "@/pages/Orders";
+import MyProfile from "@/pages/MyProfile";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import SearchBar from "@/components/layout/SearchBar";
@@ -46,7 +47,9 @@ const App = () => {
             <Route path='/signup' element={<Signup/>} />
             <Route path='/place-order' element={<Placeorder/>} />
             <Route path='/orders' element={<Orders/>} />
+            <Route path='/my-profile' element={<MyProfile/>} />
             <Route path='/verify' element={<Verify/>} />
+            <Route path="/order-success" element={<OrderSuccess />} />
             <Route path="/order-success" element={<OrderSuccess />} />
             <Route path='*' element={<NotFound/>} />
           </Routes>

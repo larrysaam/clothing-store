@@ -141,4 +141,152 @@ const adminLogin = async (req,res) => {
     }
 }
 
-export { loginUser, registerUser, adminLogin }
+//route to get user profile
+const getUserProfile = async (req, res) => {
+    try {
+        const { userId } = req.body;
+
+        if (!userId) {
+            return res.json({
+                success: false,
+                message: "User ID is required"
+            });
+        }
+
+        const user = await userModel.findById(userId).select('-password');
+
+        if (!user) {
+            return res.json({
+                success: false,
+                message: "User not found"
+            });
+        }
+
+        res.json({
+            success: true,
+            user: {
+                _id: user._id,
+                name: user.name,
+                email: user.email,
+                createdAt: user.createdAt,
+                updatedAt: user.updatedAt
+            }
+        });
+
+    } catch (error) {
+        console.log(error);
+        res.json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+//route to update user profile
+const updateUserProfile = async (req, res) => {
+    try {
+        const { userId, name, email, currentPassword, newPassword } = req.body;
+
+        if (!userId) {
+            return res.json({
+                success: false,
+                message: "User ID is required"
+            });
+        }
+
+        const user = await userModel.findById(userId);
+
+        if (!user) {
+            return res.json({
+                success: false,
+                message: "User not found"
+            });
+        }
+
+        // Validate email if it's being changed
+        if (email && email !== user.email) {
+            if (!validator.isEmail(email)) {
+                return res.json({
+                    success: false,
+                    message: "Invalid email format"
+                });
+            }
+
+            // Check if email is already taken by another user
+            const emailExists = await userModel.findOne({ email, _id: { $ne: userId } });
+            if (emailExists) {
+                return res.json({
+                    success: false,
+                    message: "Email is already taken"
+                });
+            }
+        }
+
+        // Validate name
+        if (name && name.trim().length === 0) {
+            return res.json({
+                success: false,
+                message: "Name cannot be empty"
+            });
+        }
+
+        // Handle password change
+        if (newPassword) {
+            if (!currentPassword) {
+                return res.json({
+                    success: false,
+                    message: "Current password is required to set new password"
+                });
+            }
+
+            // Verify current password
+            const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
+            if (!isCurrentPasswordValid) {
+                return res.json({
+                    success: false,
+                    message: "Current password is incorrect"
+                });
+            }
+
+            // Validate new password
+            if (newPassword.length < 8) {
+                return res.json({
+                    success: false,
+                    message: "New password must be at least 8 characters long"
+                });
+            }
+
+            // Hash new password
+            const salt = await bcrypt.genSalt(10);
+            const hashedNewPassword = await bcrypt.hash(newPassword, salt);
+            user.password = hashedNewPassword;
+        }
+
+        // Update user fields
+        if (name) user.name = name.trim();
+        if (email) user.email = email;
+
+        await user.save();
+
+        res.json({
+            success: true,
+            message: "Profile updated successfully",
+            user: {
+                _id: user._id,
+                name: user.name,
+                email: user.email,
+                createdAt: user.createdAt,
+                updatedAt: user.updatedAt
+            }
+        });
+
+    } catch (error) {
+        console.log(error);
+        res.json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+export { loginUser, registerUser, adminLogin, getUserProfile, updateUserProfile }

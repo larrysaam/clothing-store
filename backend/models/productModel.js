@@ -68,6 +68,10 @@ const productSchema = new Schema({
       enum: ['New model', 'Limited Edition', ''],
       default: ''
     },
+    customLabel: {
+      type: String,
+      default: ''
+    },
     hasSizes: {
       type: Boolean,
       default: true

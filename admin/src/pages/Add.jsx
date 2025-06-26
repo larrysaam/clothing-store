@@ -185,6 +185,7 @@ const Add = ({token}) => {
     bestseller: z.boolean(),
     preorder: z.boolean(),
     label: z.string(),
+    customLabel: z.string().optional(),
     sizeType: z.string(),
     hasSizes: z.boolean(),
     colors: z.array(colorVariantSchema)
@@ -204,6 +205,7 @@ const Add = ({token}) => {
       bestseller: false,
       preorder: false,
       label: "none",
+      customLabel: "",
       sizeType: 'clothing',
       hasSizes: true, // New field to control if product has sizes
       colors: [],
@@ -412,6 +414,7 @@ const Add = ({token}) => {
               bestseller: productData.bestseller,
               preorder: productData.preorder,
               label: productData.label || "none",
+              customLabel: productData.customLabel || "",
               sizeType: productData.sizeType || 'clothing',
               hasSizes: productData.hasSizes !== false, // Default to true if not specified
               colors: [], // Will be populated by append below
@@ -960,7 +963,7 @@ const Add = ({token}) => {
           name="label"
           control={control}
           render={({ field }) => (
-            <Select 
+            <Select
               value={field.value || "none"}
               onValueChange={(value) => field.onChange(value)}
             >
@@ -973,6 +976,21 @@ const Add = ({token}) => {
                 <SelectItem value="Limited Edition">Limited Edition</SelectItem>
               </SelectContent>
             </Select>
+          )}
+        />
+      </div>
+
+      <div className='w-full'>
+        <p className='mb-2'>Custom Label (Optional)</p>
+        <Controller
+          name="customLabel"
+          control={control}
+          render={({ field }) => (
+            <Input
+              {...field}
+              placeholder="Enter custom label text..."
+              className="w-full"
+            />
           )}
         />
       </div>

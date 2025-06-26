@@ -43,6 +43,7 @@ const addProduct = async (req, res) => {
       bestseller,
       preorder,
       label,
+      customLabel,
       hasSizes
     } = req.body;
 
@@ -165,6 +166,7 @@ const addProduct = async (req, res) => {
 
     // Normalize label value - convert 'none' to empty string
     const normalizedLabel = (label === 'none' || !label) ? '' : label;
+    const normalizedCustomLabel = customLabel ? customLabel.trim() : '';
 
     // Create new product
     const newProduct = new productModel({
@@ -179,6 +181,7 @@ const addProduct = async (req, res) => {
       bestseller: isBestseller,
       preorder: isPreorder,
       label: normalizedLabel,
+      customLabel: normalizedCustomLabel,
       hasSizes: productHasSizes,
       date: new Date()
     });
@@ -410,6 +413,11 @@ const updateProduct = async (req, res) => {
     // Normalize label value if it exists
     if (updates.label !== undefined) {
       updates.label = (updates.label === 'none' || !updates.label) ? '' : updates.label;
+    }
+
+    // Normalize customLabel value if it exists
+    if (updates.customLabel !== undefined) {
+      updates.customLabel = updates.customLabel ? updates.customLabel.trim() : '';
     }
 
     // Convert boolean fields properly

@@ -31,6 +31,10 @@ const Collection = () => {
   const [preorderOnly, setPreorderOnly] = useState(false)
   const isPreorder = searchParams.get('preorder') === 'true'
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const productsPerPage = 15
+
   // Toggle category filter
   const toggleCategory = (value) => {
     setSelectedCategory(prev => prev.includes(value) ? prev.filter(item => item !== value) : [...prev, value])
@@ -128,10 +132,14 @@ const Collection = () => {
   // Run filter logic when dependencies change
   useEffect(() => {
     applyFilter()
+    // Reset to first page when filters change
+    setCurrentPage(1)
   }, [selectedCategory, selectedSubCategory, search, showSearch, products, bestsellerOnly, preorderOnly])
 
   useEffect(() => {
     sortProduct()
+    // Reset to first page when sort changes
+    setCurrentPage(1)
   }, [sortType])
 
   useEffect(() => {
@@ -153,6 +161,11 @@ const Collection = () => {
       setPreorderOnly(true)
     }
   }, [isPreorder])
+
+  // Scroll to top when page changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [currentPage])
 
   // Update preorder checkbox handler
   const handlePreorderChange = (checked) => {
@@ -283,14 +296,111 @@ const Collection = () => {
         {/* Product Grid */}
         {isLoading ? <CollectionSkeleton /> : (
           <div>
-            <div className='grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4 gap-y-14'>
-              {filterProducts.map((item) => (
-                <ProductItem key={item._id} id={item._id} name={item.name} price={item.price} image={item.image} />
-              ))}
-            </div>
-            {!filterProducts.length && (
-              <p className='text-center text-gray-600 mt-5'>Sorry, no products were found! Please try another search.</p>
-            )}
+            {/* Pagination calculations */}
+            {(() => {
+              const totalProducts = filterProducts.length;
+              const totalPages = Math.ceil(totalProducts / productsPerPage);
+              const startIndex = (currentPage - 1) * productsPerPage;
+              const endIndex = startIndex + productsPerPage;
+              const currentProducts = filterProducts.slice(startIndex, endIndex);
+
+              return (
+                <>
+                  {/* Products count and pagination info */}
+                  {totalProducts > 0 && (
+                    <div className='flex justify-between items-center mb-4 text-sm text-gray-600'>
+                      <p>
+                        Showing {startIndex + 1}-{Math.min(endIndex, totalProducts)} of {totalProducts} products
+                      </p>
+                      {totalPages > 1 && (
+                        <p>
+                          Page {currentPage} of {totalPages}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  <div className='grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4 gap-y-14'>
+                    {currentProducts.map((item) => (
+                      <ProductItem
+                        key={item._id}
+                        id={item._id}
+                        name={item.name}
+                        price={item.price}
+                        image={item.image}
+                        preorder={item.preorder}
+                        customLabel={item.customLabel}
+                      />
+                    ))}
+                  </div>
+
+                  {!filterProducts.length && (
+                    <p className='text-center text-gray-600 mt-5'>Sorry, no products were found! Please try another search.</p>
+                  )}
+
+                  {/* Pagination Controls */}
+                  {totalPages > 1 && (
+                    <div className='flex justify-center items-center mt-8 gap-2'>
+                      {/* Previous Button */}
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                        disabled={currentPage === 1}
+                        className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                          currentPage === 1
+                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                            : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        Previous
+                      </button>
+
+                      {/* Page Numbers */}
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => {
+                        // Show first page, last page, current page, and pages around current page
+                        const showPage = pageNum === 1 ||
+                                        pageNum === totalPages ||
+                                        Math.abs(pageNum - currentPage) <= 1;
+
+                        if (!showPage && pageNum === 2 && currentPage > 4) {
+                          return <span key={pageNum} className="px-2 text-gray-400">...</span>;
+                        }
+                        if (!showPage && pageNum === totalPages - 1 && currentPage < totalPages - 3) {
+                          return <span key={pageNum} className="px-2 text-gray-400">...</span>;
+                        }
+                        if (!showPage) return null;
+
+                        return (
+                          <button
+                            key={pageNum}
+                            onClick={() => setCurrentPage(pageNum)}
+                            className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                              currentPage === pageNum
+                                ? 'bg-black text-white'
+                                : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                            }`}
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      })}
+
+                      {/* Next Button */}
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                        disabled={currentPage === totalPages}
+                        className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                          currentPage === totalPages
+                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                            : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
         )}
       </div>

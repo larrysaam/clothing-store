@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import Title from '@/components/Title'
-import CartTotal from '@/features/shared/CartTotal'
+import NumberFlow from '@number-flow/react'
 import { assets } from '@/assets/assets'
 import { ShopContext } from '@/context/ShopContext'
 import { toast } from 'sonner'
@@ -25,11 +26,25 @@ const orderSchema = z.object({
 })
 
 const Placeorder = () => {
+  const location = useLocation();
+  const cartType = location.state?.cartType || 'regular'; // Default to regular if not specified
+
   const PAYPAL_CLIENT_ID = import.meta.env.VITE_PAYPAL_CLIENT_ID;
-  const VITE_CURRENCY  =  import.meta.env.VITE_CURRENCY 
+  const VITE_CURRENCY  =  import.meta.env.VITE_CURRENCY
   const [method, setMethod] = useState('cod')
-  const { navigate, backendUrl, token, cartItems,
-    resetCart, getCartAmount, deliveryFee, products } = useContext(ShopContext)
+  const {
+    navigate,
+    backendUrl,
+    token,
+    cartItems,
+    preorderCartItems,
+    resetCart,
+    resetPreorderCart,
+    getCartAmount,
+    getPreorderCartAmount,
+    deliveryFee,
+    products
+  } = useContext(ShopContext)
 
   const {
     control,
@@ -39,9 +54,15 @@ const Placeorder = () => {
     resolver: zodResolver(orderSchema)
   })
 
+  // Determine which cart to use based on cartType
+  const currentCartItems = cartType === 'preorder' ? preorderCartItems : cartItems;
+  const currentCartAmount = cartType === 'preorder' ? getPreorderCartAmount() : getCartAmount();
+  const currentResetCart = cartType === 'preorder' ? resetPreorderCart : resetCart;
+
   useEffect(()=>{
-    console.log("Cart Items:  ",cartItems)
-  },[])
+    console.log("Cart Type:", cartType);
+    console.log("Current Cart Items:", currentCartItems);
+  }, [cartType, currentCartItems])
 
 
   const initialOptions = {
@@ -56,13 +77,23 @@ const Placeorder = () => {
 
   const createOrderMutation = useMutation({
     mutationFn: (orderData) => {
-      let endpoint = `${backendUrl}/api/order/place`; // Default to COD
-      if (method === 'stripe') {
-        endpoint = `${backendUrl}/api/order/create-checkout-session`;
-      } else if (method === 'paypal') {
-        endpoint = `${backendUrl}/api/order/place-paypal`; // New endpoint for PayPal
+      let endpoint;
+
+      // Determine endpoint based on cart type and payment method
+      if (cartType === 'preorder') {
+        endpoint = `${backendUrl}/api/preorder/create`; // Preorder endpoint
+      } else {
+        // Regular order endpoints
+        if (method === 'stripe') {
+          endpoint = `${backendUrl}/api/order/create-checkout-session`;
+        } else if (method === 'paypal') {
+          endpoint = `${backendUrl}/api/order/place-paypal`;
+        } else {
+          endpoint = `${backendUrl}/api/order/place`; // COD
+        }
       }
-      console.log('Creating order with method:', method)  
+
+      console.log('Creating order with method:', method, 'cartType:', cartType, 'endpoint:', endpoint);
       return axios.post(endpoint, orderData, { headers: { token } })
     },
     onSuccess: (res) => {
@@ -78,8 +109,9 @@ const Placeorder = () => {
           window.location.href = checkoutUrl;
         } else {
           // Handle COD or PayPal direct success (if PayPal order is created directly on backend)
-          resetCart();
-          toast.success('Order placed successfully!');
+          currentResetCart();
+          const successMessage = cartType === 'preorder' ? 'Preorder placed successfully!' : 'Order placed successfully!';
+          toast.success(successMessage);
           navigate('/');
         }
       } else {
@@ -94,8 +126,8 @@ const Placeorder = () => {
   });
 
   const prepareOrderData = (formData) => {
-    // Collect items from cart
-    const orderItems = Object.entries(cartItems).flatMap(([productId, sizes]) => 
+    // Collect items from the appropriate cart based on cartType
+    const orderItems = Object.entries(currentCartItems).flatMap(([productId, sizes]) =>
       Object.entries(sizes).map(([size, quantity]) => {
         if (quantity > 0) {
           const product = products.find(p => p._id === productId)
@@ -111,10 +143,20 @@ const Placeorder = () => {
       }).filter(Boolean)
     )
 
+    // For preorders, use different structure
+    if (cartType === 'preorder') {
+      return {
+        userId: token, // Add userId for preorders
+        items: orderItems,
+        address: formData
+      }
+    }
+
+    // For regular orders
     const orderData = {
       address: formData,
       items: orderItems,
-      amount: getCartAmount() + deliveryFee,
+      amount: currentCartAmount + deliveryFee,
       paymentMethod: method
     };
     return orderData;
@@ -182,12 +224,18 @@ const Placeorder = () => {
 
       if (response.data.success) {
         // Backend confirmed capture and order creation
-        resetCart();
-        toast.success(response.data.message || 'Order placed successfully with PayPal!');
+        currentResetCart();
+        const successMessage = cartType === 'preorder'
+          ? (response.data.message || 'Preorder placed successfully with PayPal!')
+          : (response.data.message || 'Order placed successfully with PayPal!');
+        toast.success(successMessage);
         navigate('/orders');
       } else {
         // Backend indicated an issue with capture or order creation
-        toast.error(response.data.message || 'PayPal payment was approved, but order finalization failed.');
+        const errorMessage = cartType === 'preorder'
+          ? 'PayPal payment was approved, but preorder finalization failed.'
+          : 'PayPal payment was approved, but order finalization failed.';
+        toast.error(response.data.message || errorMessage);
       }
     } catch (error) {
       console.error('Error capturing payment on backend:', error);
@@ -197,12 +245,29 @@ const Placeorder = () => {
 
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className='flex flex-col sm:flex-row justify-between lg:justify-evenly gap-4 pt-5 sm:pt-14 min-h-[70vh] border-t animate-fade animate-duration-500'>
+    <div className='animate-fade animate-duration-500'>
+      {/* Cart Type Header */}
+      <div className={`text-center py-4 mb-6 ${cartType === 'preorder' ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'} border-t border-b`}>
+        <h2 className={`text-xl font-semibold ${cartType === 'preorder' ? 'text-blue-800' : 'text-gray-800'}`}>
+          {cartType === 'preorder' ? 'Checkout Preorders' : 'Checkout Regular Orders'}
+        </h2>
+        <p className={`text-sm ${cartType === 'preorder' ? 'text-blue-600' : 'text-gray-600'}`}>
+          {cartType === 'preorder'
+            ? 'Complete your preorder - items will be delivered when available'
+            : 'Complete your order for immediate processing'
+          }
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit(onSubmit)} className='flex flex-col sm:flex-row justify-between lg:justify-evenly gap-4 pt-5 sm:pt-14 min-h-[70vh] animate-fade animate-duration-500'>
 
       {/* Left Side - Form */}
       <div className='flex flex-col gap-4 w-full sm:max-w-[480px]'>
         <div className='text-xl sm:text-2xl my-3'>
-          <Title text1='DELIVERY' text2='INFORMATION' />
+          <Title
+            text1={cartType === 'preorder' ? 'PREORDER' : 'DELIVERY'}
+            text2='INFORMATION'
+          />
         </div>
 
         <div className='flex gap-3 justify-between'>
@@ -274,7 +339,47 @@ const Placeorder = () => {
       {/* Right Side - Cart + Payment */}
       <div>
         <div className='mt-8 min-w-80'>
-          <CartTotal />
+          <div className='text-2xl'>
+            <Title text1='CART' text2={cartType === 'preorder' ? 'PREORDER TOTAL' : 'TOTAL'} />
+          </div>
+          <div className='flex flex-col gap-2 mt-2 text-base'>
+            <div className='flex justify-between'>
+              <p>{cartType === 'preorder' ? 'Preorder Subtotal' : 'Subtotal'}</p>
+              <NumberFlow
+                value={currentCartAmount || 0}
+                format={{
+                  style: 'currency',
+                  currency: import.meta.env.VITE_CURRENCY || 'EUR',
+                  maximumFractionDigits: 2
+                }}
+              />
+            </div>
+            <hr/>
+            <div className='flex justify-between'>
+              <p>Shipping fee</p>
+              <NumberFlow
+                value={deliveryFee || 0}
+                format={{
+                  style: 'currency',
+                  currency: import.meta.env.VITE_CURRENCY || 'EUR',
+                  maximumFractionDigits: 2
+                }}
+              />
+            </div>
+            <hr/>
+            <div className='text-lg flex justify-between'>
+              <b>Total</b>
+              <NumberFlow
+                className='font-semibold'
+                value={currentCartAmount === 0 ? 0 : currentCartAmount + deliveryFee}
+                format={{
+                  style: 'currency',
+                  currency: import.meta.env.VITE_CURRENCY || 'EUR',
+                  maximumFractionDigits: 2
+                }}
+              />
+            </div>
+          </div>
         </div>
         <div className='mt-12'>
           <Title text1='PAYMENT' text2='METHOD' />
@@ -353,7 +458,8 @@ const Placeorder = () => {
         </div>
       </div>
 
-    </form>
+      </form>
+    </div>
   )
 }
 

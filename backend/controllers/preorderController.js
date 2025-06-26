@@ -1,4 +1,4 @@
-import PreOrder from '../models/preorderModel.js'
+import PreOrder, { PreorderCart } from '../models/preorderModel.js'
 import Product from '../models/productModel.js' // Corrected import
 import User from '../models/userModel.js'
 import { sendOrderNotification } from '../utils/emailService.js'
@@ -285,7 +285,7 @@ export const sendNotification = async (req, res) => {
     console.log('Sending notification:', { email, status, orderDetails })
 
     // Email template based on status
-    const subject = status === 'Confirmed' 
+    const subject = status === 'Confirmed'
       ? 'Your Preorder has been Confirmed!'
       : 'Your Preorder has been Cancelled'
 
@@ -310,5 +310,197 @@ export const sendNotification = async (req, res) => {
     res.json({ success: true, message: 'Notification sent successfully' })
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to send notification' })
+  }
+}
+
+// Add preorder item to cart (separate from regular cart)
+export const addToPreorderCart = async (req, res) => {
+  try {
+    const { userId, itemId, size, color } = req.body;
+
+    console.log('Adding to preorder cart:', { userId, itemId, size, color });
+
+    // Validate required fields
+    if (!userId || !itemId || !size) {
+      return res.json({success: false, message: 'Missing required fields: userId, itemId, size'});
+    }
+
+    // Validate that the product exists and is a preorder product
+    const product = await Product.findById(itemId);
+    if (!product) {
+      return res.json({success: false, message: 'Product not found'});
+    }
+
+    if (!product.preorder) {
+      return res.json({success: false, message: 'Product is not available for preorder'});
+    }
+
+    // Find or create preorder cart for user
+    let preorderCart = await PreorderCart.findOne({ user: userId });
+    if (!preorderCart) {
+      preorderCart = new PreorderCart({ user: userId, cartData: {} });
+    }
+
+    // Create cart key (same format as regular cart)
+    const cartKey = color ? `${size}-${color}` : size;
+
+    // Add item to preorder cart
+    if (!preorderCart.cartData[itemId]) {
+      preorderCart.cartData[itemId] = {};
+    }
+
+    preorderCart.cartData[itemId][cartKey] = (preorderCart.cartData[itemId][cartKey] || 0) + 1;
+
+    // Save preorder cart
+    await preorderCart.save();
+
+    console.log('Item added to preorder cart successfully');
+    res.json({ success: true, message: 'Item added to preorder cart' });
+
+  } catch (error) {
+    console.error('Add to preorder cart error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+// Get user's preorder cart
+export const getPreorderCart = async (req, res) => {
+  try {
+    // Get userId from auth middleware
+    const userId = req.body.userId;
+
+    console.log('Get preorder cart request for user:', userId);
+
+    if (!userId) {
+      return res.json({success: false, message: 'Missing required field: userId'});
+    }
+
+    // Find preorder cart for user
+    const preorderCart = await PreorderCart.findOne({ user: userId });
+    const cartData = preorderCart?.cartData || {};
+
+    console.log('Retrieved preorder cart data:', cartData);
+
+    res.json({ success: true, cartData });
+
+  } catch (error) {
+    console.error('Get preorder cart error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+// Update preorder cart item quantity
+export const updatePreorderCart = async (req, res) => {
+  try {
+    const { userId, itemId, size, quantity, color } = req.body;
+
+    console.log('Updating preorder cart:', { userId, itemId, size, quantity, color });
+
+    if (!userId || !itemId || !size || quantity === undefined) {
+      return res.json({success: false, message: 'Missing required fields'});
+    }
+
+     // Validate stock if quantity > 0
+      if (quantity > 0) {
+          const product = await productModel.findById(itemId);
+          if (!product) {
+              return res.json({success: false, message: 'Product not found'});
+          }
+
+          // Check stock availability for color/size combination
+          if (color) {
+              const colorData = product.colors.find(c => c.colorHex === color);
+              if (!colorData) {
+                  return res.json({success: false, message: 'Color not found'});
+              }
+              
+              const sizeData = colorData.sizes.find(s => s.size === size);
+              if (!sizeData) {
+                  return res.json({success: false, message: 'Size not available for this color'});
+              }
+              
+              if (quantity > sizeData.quantity) {
+                  return res.json({
+                      success: false, 
+                      message: `Only ${sizeData.quantity} items available in stock`
+                  });
+              }
+          }
+      }
+
+    // Find preorder cart
+    let preorderCart = await PreorderCart.findOne({ user: userId });
+    if (!preorderCart) {
+      preorderCart = new PreorderCart({ user: userId, cartData: {} });
+    }
+
+    const cartKey = color ? `${size}-${color}` : size;
+
+    if (quantity === 0) {
+      // Remove item from cart
+      if (preorderCart.cartData[itemId]) {
+        delete preorderCart.cartData[itemId][cartKey];
+        if (Object.keys(preorderCart.cartData[itemId]).length === 0) {
+          delete preorderCart.cartData[itemId];
+        }
+      }
+    } else {
+      // Update quantity
+      if (!preorderCart.cartData[itemId]) {
+        preorderCart.cartData[itemId] = {};
+      }
+      preorderCart.cartData[itemId][cartKey] = quantity;
+    }
+
+
+
+    // Save updated cart data with proper options
+    const updatedUser = await PreorderCart.findByIdAndUpdate(
+        {_id: preorderCart._id}, 
+        { $set: { cartData: preorderCart.cartData } }, 
+        { 
+            new: true, 
+            runValidators: false,
+            strict: false, // Allow updating cartData object
+            upsert: false
+        }
+    );
+
+    if (!updatedUser) {
+        console.error('Failed to update preorder cart in database');
+        return res.json({success: false, message: 'Failed to update preorder cart'});
+    }
+
+    console.log('preorder Cart updated successfully for user:', updatedUser.name);
+    console.log('Final cart data in database:', updatedUser.cartData);
+
+    res.json({ success: true, message: 'Preorder cart updated successfully' });
+
+  } catch (error) {
+    console.error('Update preorder cart error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+// Clear preorder cart (after checkout)
+export const clearPreorderCart = async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.json({success: false, message: 'Missing userId'});
+    }
+
+    await PreorderCart.findOneAndUpdate(
+      { user: userId },
+      { cartData: {} },
+      { upsert: true }
+    );
+
+    res.json({ success: true, message: 'Preorder cart cleared successfully' });
+
+  } catch (error) {
+    console.error('Clear preorder cart error:', error);
+    res.status(500).json({ success: false, message: error.message });
   }
 }
