@@ -1,6 +1,7 @@
 {
-  "name": "e-commerce",
+  "name": "KMwear",
   "private": true,
+  "homepage": "https://www.kmwear.fr",
   "version": "0.0.0",
   "type": "module",
   "scripts": {

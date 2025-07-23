@@ -642,6 +642,7 @@ const Add = ({token}) => {
   }, [watch('category'), watch('sizeType')])
 
 
+  
 
   if (isLoadingProduct) {
     return (
