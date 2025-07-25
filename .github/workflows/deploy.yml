@@ -44,7 +44,7 @@ jobs:
             # Copy the new build files from the GitHub Actions runner to the VPS
             # The path '/home/runner/work/clothing-store/frontend/dist/*'
             # is where GitHub Actions places your built 'frontend/build' content
-            sudo cp -r /home/runner/work/clothing-store/frontend/dist/* /var/www/html
+            sudo cp -r /home/runner/work/clothing-store/clothing-store/frontend/dist/* /var/www/html
             
             # Restart Nginx to ensure it serves the newly deployed static files
             sudo systemctl restart nginx
@@ -81,7 +81,7 @@ jobs:
             # Copy the entire backend source code to the VPS
             # The path '/home/runner/work/clothing-store/clothing-store/backend/*'
             # copies all files from your 'backend' directory on the runner
-            sudo cp -r /home/runner/work/clothing-store/backend/* /var/www/backend
+            sudo cp -r /home/runner/work/clothing-store/clothing-store/backend/* /var/www/backend
             
             # Navigate to the backend directory on the VPS
             cd /var/www/backend
@@ -137,7 +137,7 @@ jobs:
             # Copy the new build files from the GitHub Actions runner to the VPS
             # The path '/home/runner/work/clothing-store/clothing-store/admin/build/*'
             # is where GitHub Actions places your built 'admin/dist' content
-            sudo cp -r /home/runner/work/clothing-store/admin/dist/* /var/www/admin
+            sudo cp -r /home/runner/work/clothing-store/clothing-store/admin/dist/* /var/www/admin
             
             # Restart Nginx to ensure it serves the newly deployed static files
             sudo systemctl restart nginx
