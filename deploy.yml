@@ -1,39 +1,144 @@
-name: Deploy React App to Hostinger VPS
+name: Deploy Clothing Store Apps to VPS
 
 on:
   push:
     branches:
-      - main # Or whatever branch you want to deploy from
+      - main # This workflow triggers on pushes to the 'main' branch
 
 jobs:
-  deploy:
+  # Job to deploy the React frontend application
+  deploy-frontend:
+    runs-on: ubuntu-latest # Uses a fresh Ubuntu virtual machine for each job
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3 # Checks out your repository code
+
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v3 # Sets up Node.js for npm commands
+        with:
+          node-version: '20' # Specify the Node.js version your frontend requires
+
+      - name: Install Frontend Dependencies
+        working-directory: ./frontend # Changes the current directory to 'frontend'
+        run: npm install # Installs packages listed in frontend/package.json
+
+      - name: Build Frontend
+        working-directory: ./frontend
+        run: npm run build # Creates the production build (e.g., 'build' or 'dist' folder)
+
+      - name: Deploy Frontend to VPS
+        uses: appleboy/ssh-action@master # GitHub Action to run SSH commands on your VPS
+        with:
+          host: ${{ secrets.VPS_HOST }} # Your VPS IP address from GitHub Secrets
+          username: ${{ secrets.VPS_USERNAME }} # Your SSH username from GitHub Secrets
+          key: ${{ secrets.SSH_PRIVATE_KEY }} # Your SSH private key from GitHub Secrets
+          script: |
+            # Create the target directory on the VPS if it doesn't exist
+            # This ensures /var/www/html/frontend is ready
+            sudo mkdir -p /var/www/html
+            
+            # Remove all existing files in the target directory on VPS
+            # This ensures a clean deployment and removes old assets
+            sudo rm -rf /var/www/html/*
+            
+            # Copy the new build files from the GitHub Actions runner to the VPS
+            # The path '/home/runner/work/clothing-store/frontend/dist/*'
+            # is where GitHub Actions places your built 'frontend/build' content
+            sudo cp -r /home/runner/work/clothing-store/frontend/dist/* /var/www/html
+            
+            # Restart Nginx to ensure it serves the newly deployed static files
+            sudo systemctl restart nginx
+            echo "Frontend deployed successfully to /var/www/html/!"
+
+  # Job to deploy the Express.js backend application
+  deploy-backend:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Setup Node.js
+      - name: Setup Node.js Environment
         uses: actions/setup-node@v3
         with:
-          node-version: '20' # Or your desired Node.js version
+          node-version: '20' # Specify the Node.js version your backend requires
 
-      - name: Install dependencies
-        run: npm install
-
-      - name: Build React app
-        run: npm run build
-
-      - name: Deploy to VPS
+      - name: Deploy Backend to VPS
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            cd ${{ secrets.VPS_TARGET_DIRECTORY }}
-            # Remove old build files (optional, but good for clean deployments)
-            rm -rf *
-            # Copy new build files
-            cp -r /home/runner/work/${{ github.repository }}/${{ github.repository }}/build/* . # Adjust path based on your build folder location
-            # Restart Nginx (if necessary, or just rely on it serving static files)
+            # Create the target directory on the VPS if it doesn't exist
+            # This ensures /var/www/html/backend is ready
+            sudo mkdir -p /var/www/html/backend
+            
+            # Remove all existing files in the target directory on VPS
+            # Be cautious: if you have a .env file on the VPS that's not in Git,
+            # this will delete it. Consider handling .env separately (e.g., exclude from rm, or copy after).
+            sudo rm -rf /var/www/html/backend/*
+            
+            # Copy the entire backend source code to the VPS
+            # The path '/home/runner/work/clothing-store/clothing-store/backend/*'
+            # copies all files from your 'backend' directory on the runner
+            sudo cp -r /home/runner/work/clothing-store/backend/* /var/www/backend
+            
+            # Navigate to the backend directory on the VPS
+            cd /var/www/html/backend
+            
+            # Install backend dependencies directly on the VPS
+            # This is important for native modules or if the VPS environment differs from the runner
+            npm install
+            
+            # Restart or start the backend process using PM2
+            # 'clothing-store-backend' is the PM2 process name.
+            # 'server.js' should be your main Express app entry file.
+            pm2 restart || pm2 start server.js
+            
+            # Save the PM2 process list to ensure the app restarts automatically on VPS reboot
+            pm2 save
+            echo "Backend deployed and restarted successfully to /var/www/html/backend!"
+
+  # Job to deploy the Admin (React) application
+  deploy-admin:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20' # Specify the Node.js version your admin app requires
+
+      - name: Install Admin Dependencies
+        working-directory: ./admin # Changes the current directory to 'admin'
+        run: npm install # Installs packages listed in admin/package.json
+
+      - name: Build Admin
+        working-directory: ./admin
+        run: npm run build # Creates the production build (e.g., 'build' or 'dist' folder)
+
+      - name: Deploy Admin to VPS
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            # Create the target directory on the VPS if it doesn't exist
+            # This ensures /var/www/admin is ready
+            sudo mkdir -p /var/www/admin
+            
+            # Remove all existing files in the target directory on VPS
+            # This ensures a clean deployment and removes old assets
+            sudo rm -rf /var/www/admin/*
+            
+            # Copy the new build files from the GitHub Actions runner to the VPS
+            # The path '/home/runner/work/clothing-store/clothing-store/admin/build/*'
+            # is where GitHub Actions places your built 'admin/dist' content
+            sudo cp -r /home/runner/work/clothing-store/admin/dist/* /var/www/admin
+            
+            # Restart Nginx to ensure it serves the newly deployed static files
             sudo systemctl restart nginx
+            echo "Admin deployed successfully to /var/www/html/admin!"
