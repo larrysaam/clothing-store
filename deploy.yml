@@ -71,12 +71,12 @@ jobs:
           script: |
             # Create the target directory on the VPS if it doesn't exist
             # This ensures /var/www/html/backend is ready
-            sudo mkdir -p /var/www/html/backend
+            sudo mkdir -p /var/www/backend
             
             # Remove all existing files in the target directory on VPS
             # Be cautious: if you have a .env file on the VPS that's not in Git,
             # this will delete it. Consider handling .env separately (e.g., exclude from rm, or copy after).
-            sudo rm -rf /var/www/html/backend/*
+            sudo rm -rf /var/www/backend/*
             
             # Copy the entire backend source code to the VPS
             # The path '/home/runner/work/clothing-store/clothing-store/backend/*'
@@ -84,7 +84,7 @@ jobs:
             sudo cp -r /home/runner/work/clothing-store/backend/* /var/www/backend
             
             # Navigate to the backend directory on the VPS
-            cd /var/www/html/backend
+            cd /var/www/backend
             
             # Install backend dependencies directly on the VPS
             # This is important for native modules or if the VPS environment differs from the runner
@@ -97,7 +97,7 @@ jobs:
             
             # Save the PM2 process list to ensure the app restarts automatically on VPS reboot
             pm2 save
-            echo "Backend deployed and restarted successfully to /var/www/html/backend!"
+            echo "Backend deployed and restarted successfully to /var/www/backend!"
 
   # Job to deploy the Admin (React) application
   deploy-admin:
