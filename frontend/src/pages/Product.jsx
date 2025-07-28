@@ -418,12 +418,8 @@ const Product = () => {
               ) : (
                 <button
                   onClick={handleAddToCart}
-                  disabled={!selectedColor || (hasRealSizes && !selectedSize) || (hasRealSizes ? availableQuantity === 0 : noSizeQuantity === 0)}
-                  className={`w-full sm:w-auto bg-black text-white px-6 sm:px-8 py-3 text-sm rounded-full transition-all ${
-                    (!selectedColor || (hasRealSizes && !selectedSize) || (hasRealSizes ? availableQuantity === 0 : noSizeQuantity === 0))
-                      ? 'opacity-50 cursor-not-allowed bg-gray-400'
-                      : 'hover:bg-gray-800 active:bg-gray-900'
-                  }`}
+                  className="w-full sm:w-auto bg-black text-white px-6 sm:px-8 py-3 text-sm rounded-full hover:bg-gray-800 active:bg-gray-900 transition-colors"
+                 
                 >
                   Add to Cart
                 </button>

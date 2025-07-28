@@ -31,7 +31,7 @@ const Placeorder = () => {
 
   const PAYPAL_CLIENT_ID = import.meta.env.VITE_PAYPAL_CLIENT_ID;
   const VITE_CURRENCY  =  import.meta.env.VITE_CURRENCY
-  const [method, setMethod] = useState('cod')
+  const [method, setMethod] = useState('stripe')
   const {
     navigate,
     backendUrl,
@@ -245,7 +245,7 @@ const Placeorder = () => {
 
 
   return (
-    <div className='animate-fade animate-duration-500'>
+    <div className='px-3 sm:px-6 lg:px-14 animate-fade animate-duration-500'>
       {/* Cart Type Header */}
       <div className={`text-center py-4 mb-6 ${cartType === 'preorder' ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'} border-t border-b`}>
         <h2 className={`text-xl font-semibold ${cartType === 'preorder' ? 'text-blue-800' : 'text-gray-800'}`}>
@@ -315,7 +315,7 @@ const Placeorder = () => {
         <div className='flex gap-3 justify-between'>
           <div>
             <Controller name='zipcode' control={control} render={({ field }) => (
-              <Input className='h-10' placeholder='Zipcode' type='number' {...field} />
+              <Input className='h-10' placeholder='Postal Code' type='number' {...field} />
             )} />
             {errors.zipcode && <p className="text-red-500 pl-1 text-sm">{errors.zipcode.message}</p>}
           </div>
@@ -398,16 +398,7 @@ const Placeorder = () => {
               </div>
             </div>
 
-            <div
-              onClick={() => setMethod('cod')}
-              className={`flex items-center gap-3 border p-4 cursor-pointer ${
-                method === 'cod' ? 'border-black' : ''
-              }`}
-            >
-              <div className={`w-3.5 h-3.5 border-2 rounded-full ${ method === 'cod' ? 'bg-black border-black' : 'border-gray-400'}`} />
-              <p className='text-gray-700 text-sm font-medium'>Cash on delivery</p>
-            </div>
-          </div>
+                      </div>
           
           {/* PayPal Option */}
           <div 

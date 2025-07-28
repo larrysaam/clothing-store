@@ -9,7 +9,8 @@ export const ShopContext = createContext();
 
 const ShopContextProvider = (props) => {
   const currency = import.meta.env.VITE_CURRENCY_SYMBOL || '€'
-  const deliveryFee = 10;
+  // Read delivery fee from environment, fallback to 0 if not set
+  const deliveryFee = parseFloat(import.meta.env.VITE_DELIVERY_FEE) || 0;
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const [search, setSearch] = useState("");
   const [showSearch, setShowSearch] = useState(false);
