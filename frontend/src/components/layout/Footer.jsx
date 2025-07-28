@@ -35,8 +35,8 @@ const Footer = () => {
         <div>
           <p className='text-xl font-medium mb-5'>GET IN TOUCH</p>
           <ul className='flex flex-col gap-1 text-gray-600'>
-            <li>+82-10-2222-3333</li>
-            <li>contactus@welcome.com</li>
+            <li>+33 1 23 45 67 89</li>
+            <li>contact@kmwear.fr</li>
           </ul>
           <p className='text-gray-400 mt-5 mb-2'>Follow us on</p>
           <div className='flex gap-4 text-gray-600 text-lg'>
@@ -59,7 +59,7 @@ const Footer = () => {
       <div>
         <hr />
         <div className='flex justify-between max-sm:flex-col items-center max-sm:mb-5'>
-          <p className='py-5 text-sm text-center text-gray-400'>Copyright 2025 MyWebSite.com - All Rights Reserved.</p>
+          <p className='py-5 text-sm text-center text-gray-400'>Copyright 2025 kmwear.fr - All Rights Reserved.</p>
           <div className='flex items-center gap-3'>
             <div className='w-[46px] h-[30px] border bg-slate-50 rounded flex items-center justify-center'>
               <img src={assets.Mastercard} alt='badges' />

@@ -21,6 +21,7 @@ import Signup from "@/pages/Signup";
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import OrderSuccess from '@/pages/OrderSuccess';
+import PrivacyPolicy from '@/pages/PrivacyPolicy';
 
 const App = () => {
   const { pathname } = useLocation();
@@ -41,6 +42,7 @@ const App = () => {
             <Route path='/collection' element={<Collection/>} />
             <Route path='/about' element={<About/>} />
             <Route path='/contact' element={<Contact/>} />
+            <Route path='/privacy' element={<PrivacyPolicy/>} />
             <Route path='/product/:productId' element={<Product/>} />
             <Route path='/cart' element={<Cart/>} />
             <Route path='/login' element={<Login/>} />
