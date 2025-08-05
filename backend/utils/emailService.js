@@ -52,7 +52,21 @@ export const sendOrderNotification = async (orderDetails, isPreorder = false) =>
       `
     }
 
+    // Send to admin
     await transporter.sendMail(mailOptions)
+    // Send confirmation email to user
+    const customerMailOptions = {
+      from: process.env.EMAIL_USER,
+      to: orderDetails.address.email,
+      subject: `${orderType} Confirmation - ${orderDetails._id}`,
+      text: `Dear ${orderDetails.address.firstName},\n\n` +
+            `Thank you for your ${orderType.toLowerCase()}. Here are your order details:\n\n` +
+            `${items}\n\n` +
+            `Total Amount: ${orderDetails.amount}\n\n` +
+            `We will notify you once your order is shipped.\n\n` +
+            `Best regards,\nKM Sportwear Team`
+    }
+    await transporter.sendMail(customerMailOptions)
   } catch (error) {
     console.error('Email notification error:', error)
   }
