@@ -13,6 +13,8 @@ import Categories from './pages/Categories'
 import Preorders from './pages/Preorders'
 import Settings from './pages/Settings'
 import Messages from './pages/Messages' // Import the new Messages page
+import Subscribers from './pages/Subscribers'
+import SendNewsletter from './pages/SendNewsletter'
 
 
 export const backendUrl = import.meta.env.VITE_BACKEND_URL
@@ -36,7 +38,7 @@ const App = () => {
               <Navbar setToken={setToken}/>
               <hr />
               <div className='flex flex-1'>
-                <Sidebar />
+                <Sidebar setToken={setToken}/>
                 <div className='flex-1 p-8 text-gray-600 text-base'>
                   <Routes>
                     <Route path='/settings' element={<Settings token={token} />} />
@@ -47,6 +49,8 @@ const App = () => {
                     <Route path='/preorders' element={<Preorders token={token} />} />
                     <Route path='/category' element={<Categories token={token} />} />
                     <Route path='/messages' element={<Messages token={token} />} /> {/* Add route for Messages */}
+                    <Route path='/subscribers' element={<Subscribers token={token} />} />
+                    <Route path='/send-newsletter' element={<SendNewsletter token={token} />} />
                     <Route path='/' element={<Dashboard token={token} />} />
                     <Route path='*' element={<NotFound />} />
                   </Routes>

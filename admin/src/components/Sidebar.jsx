@@ -9,8 +9,10 @@ import { IoMdClose } from 'react-icons/io'
 import { assets } from '../assets/assets'
 import { IoSettings } from "react-icons/io5";
 import { MdLibraryAddCheck } from "react-icons/md";
+import { FaUsers } from 'react-icons/fa';
+import { MdOutlineMail } from "react-icons/md";
 
-const Sidebar = () => {
+const Sidebar = ({ setToken }) => {
   const [isOpen, setIsOpen] = useState(false)
 
   const toggleSidebar = () => {
@@ -112,6 +114,24 @@ const Sidebar = () => {
             {/* Use an appropriate icon, e.g., BsChatDots or assets.message_icon */}
             <BsChatDots size={18} /> 
             <p className='block'>Messages</p>
+          </NavLink>
+
+          <NavLink 
+            to='/subscribers' 
+            onClick={() => setIsOpen(false)}
+            className='flex items-center gap-3 border border-gray-300 border-r-0 px-3 py-2 rounded-l'
+          >
+            <FaUsers size={18} /> 
+            <p className='block'>Subscribers</p>
+          </NavLink>
+
+          <NavLink 
+            to='/send-newsletter' 
+            onClick={() => setIsOpen(false)}
+            className='flex items-center gap-3 border border-gray-300 border-r-0 px-3 py-2 rounded-l'
+          >
+            <MdOutlineMail size={20} />
+            <p className='block'>Send Newsletter</p>
           </NavLink>
 
           <NavLink 
