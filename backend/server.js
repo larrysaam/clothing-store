@@ -13,11 +13,12 @@ import PreorderRouter from './routes/preorderRoute.js'
 import settingRoute from './routes/settingRoute.js'
 import reviewRoutes from './routes/reviewRoutes.js'
 import photoRouter from './routes/PhotoRoute.js'
+import newsletterRouter from './routes/newsletterRoute.js'
 
 //App config
 
 const app = express()
-const port = process.env.PORT || 4000
+const port = process.env.PORT || 7000
 connectDB()
 connectCloudinary()
 
@@ -40,6 +41,7 @@ app.use('/api/categories', CategoryRouter)
 app.use('/api/settings', settingRoute)
 app.use('/api/reviews', reviewRoutes)
 app.use('/api/photos', photoRouter)
+app.use('/api/newsletter', newsletterRouter)
 
 app.get('/', (req, res) => {
     res.send("API working")

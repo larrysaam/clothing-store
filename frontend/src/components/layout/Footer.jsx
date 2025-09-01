@@ -2,6 +2,7 @@ import React from 'react'
 import { assets } from '@/assets/assets'
 import { Link } from 'react-router-dom'
 import { FaWhatsapp, FaInstagram, FaLinkedin, FaTwitter } from 'react-icons/fa'
+import Newsletter from './Newsletter'
 
 const Footer = () => {
   return (
@@ -54,6 +55,10 @@ const Footer = () => {
             </a>
           </div>
         </div>
+      </div>
+
+      <div className='my-10'>
+      
       </div>
 
       <div>

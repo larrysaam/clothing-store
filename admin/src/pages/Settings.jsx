@@ -11,7 +11,7 @@ import { TrendsSettings } from '@/features/settings/components/TrendsSettings'
 import { SectionVisibilitySettings } from '@/features/settings/components/SectionVisibilitySettings'
 import axios from 'axios'
 import { toast } from "sonner"
-import { backendUrl } from '@/lib/utils'
+import { backendUrl } from '../App';
 
 const Settings = ({ token }) => {
   const { updateSettings } = useSettings(token)

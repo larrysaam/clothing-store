@@ -8,6 +8,7 @@ import NewLook from '@/features/home/NewLook'
 import Trends from '@/features/home/Trends'
 import { Picks } from '@/features/home/Picks'
 import { useSettings } from '@/hooks/useSettings'
+import Newsletter from '@/components/layout/Newsletter'
 
 const Home = () => {
   const { settings, loading, error } = useSettings();
@@ -24,7 +25,8 @@ const Home = () => {
       {/* <LatestCollection/> */}
       {/* <Bestseller/> */}
       <Picks/>
-      <NewsletterBox/>
+
+        <Newsletter/>
     </div>
   )
 }
