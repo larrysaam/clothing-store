@@ -22,6 +22,7 @@ import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import OrderSuccess from '@/pages/OrderSuccess';
 import PrivacyPolicy from '@/pages/PrivacyPolicy';
+import Delivery from '@/pages/Delivery';
 
 const App = () => {
   const { pathname } = useLocation();
@@ -52,7 +53,7 @@ const App = () => {
             <Route path='/my-profile' element={<MyProfile/>} />
             <Route path='/verify' element={<Verify/>} />
             <Route path="/order-success" element={<OrderSuccess />} />
-            <Route path="/order-success" element={<OrderSuccess />} />
+            <Route path='/delivery' element={<Delivery/>} />
             <Route path='*' element={<NotFound/>} />
           </Routes>
         <Footer/>
