@@ -1,6 +1,6 @@
 
 import Subscriber from '../models/subscriberModel.js';
-import { sendEmail } from '../utils/email.js';
+import { sendEmail, sendWelcomeEmail } from '../utils/email.js';
 
 // @desc    Subscribe to newsletter
 // @route   POST /api/newsletter/subscribe
@@ -25,7 +25,16 @@ const subscribe = async (req, res) => {
         const newSubscriber = new Subscriber({ email });
         await newSubscriber.save();
 
-        res.status(201).json({ message: 'Successfully subscribed!' });
+        // Send welcome email to the new subscriber
+        try {
+            await sendWelcomeEmail(email);
+            console.log(`Welcome email sent to: ${email}`);
+        } catch (emailError) {
+            console.error('Failed to send welcome email:', emailError);
+            // Don't fail the subscription if email fails, but log the error
+        }
+
+        res.status(201).json({ message: 'Successfully subscribed! Check your email for a welcome message.' });
 
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
