@@ -4,29 +4,41 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import { backendUrl } from '../App';
 
-const Subscribers = () => {
+const Subscribers = ({ token }) => {
     const [subscribers, setSubscribers] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    const token = localStorage.getItem('token');
+    // Fallback to localStorage if token prop is not provided
+    const authToken = token || localStorage.getItem('token');
 
     useEffect(() => {
         const fetchSubscribers = async () => {
             try {
                 const response = await axios.get(`${backendUrl}/api/newsletter`, {
-                    headers: { token }
+                    headers: { token: authToken }
                 });
-                if (response.data) {
+                console.log('Subscribers response:', response.data);
+                
+                // Handle both array response and object response
+                if (Array.isArray(response.data)) {
                     setSubscribers(response.data);
+                } else if (response.data && Array.isArray(response.data.subscribers)) {
+                    setSubscribers(response.data.subscribers);
+                } else {
+                    console.error('Unexpected response format:', response.data);
+                    setSubscribers([]);
+                    toast.error('Unexpected response format from server');
                 }
             } catch (error) {
-                toast.error('Failed to fetch subscribers');
+                console.error('Error fetching subscribers:', error);
+                setSubscribers([]);
+                toast.error('Failed to fetch subscribers: ' + (error.response?.data?.message || error.message));
             }
             setLoading(false);
         };
 
         fetchSubscribers();
-    }, [token]);
+    }, [authToken]);
 
     if (loading) {
         return <p>Loading subscribers...</p>;
@@ -48,7 +60,7 @@ const Subscribers = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {subscribers.map((subscriber) => (
+                            {Array.isArray(subscribers) && subscribers.map((subscriber) => (
                                 <tr key={subscriber._id} className="border-b">
                                     <td className="py-3 px-4">{subscriber.email}</td>
                                     <td className="py-3 px-4">{new Date(subscriber.subscribedAt).toLocaleDateString()}</td>
@@ -57,7 +69,7 @@ const Subscribers = () => {
                         </tbody>
                     </table>
                 </div>
-                {subscribers.length === 0 && !loading && (
+                {Array.isArray(subscribers) && subscribers.length === 0 && !loading && (
                     <p className="text-center text-gray-500 mt-4">No subscribers yet.</p>
                 )}
             </div>

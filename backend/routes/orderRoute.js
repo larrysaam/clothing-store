@@ -1,14 +1,14 @@
 import express from 'express'
 import { placeOrder, createPaypalOrder, capturepaypalorder, placeOrderPaypal, placeOrderStripe, allOrders, userOrders, updateStatus, verifyStripe, validatePayment, createPaymentIntent, createOrder, createCheckoutSession, verifyCheckoutSession } from "../controllers/orderController.js"
-import adminAuth from '../middleware/adminAuth.js'
+import adminAuth, { checkPermission } from '../middleware/enhancedAdminAuth.js'
 import authUser from '../middleware/auth.js'
 
 const orderRouter = express.Router()
 
 //admin features
-orderRouter.post('/list', adminAuth, allOrders)
-orderRouter.post('/status', adminAuth, updateStatus)
-orderRouter.post('/payment', adminAuth, validatePayment);
+orderRouter.post('/list', adminAuth, checkPermission('orders', 'view'), allOrders)
+orderRouter.post('/status', adminAuth, checkPermission('orders', 'edit'), updateStatus)
+orderRouter.post('/payment', adminAuth, checkPermission('orders', 'edit'), validatePayment);
 
 //payment features
 orderRouter.post('/place', authUser, placeOrder)

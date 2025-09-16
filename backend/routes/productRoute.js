@@ -1,6 +1,6 @@
 import express from 'express';
 import upload from '../middleware/multer.js';
-import adminAuth from '../middleware/adminAuth.js';
+import adminAuth, { checkPermission } from '../middleware/enhancedAdminAuth.js';
 import authUser from '../middleware/auth.js';
 import { 
   addProduct, 
@@ -22,14 +22,15 @@ const router = express.Router()
 // Flexible file upload configuration that accepts any field names
 const imageUpload = upload.any(); // This accepts any field names
 
-// Create product route with updated upload handlingd
-router.post('/add', adminAuth, imageUpload, addProduct)// Update product route with same upload handlingdl
-router.put('/update/:id', adminAuth, imageUpload, updateProduct)
-router.post('/remove',adminAuth, removeProduct);
+// Create product route with updated upload handling
+router.post('/add', adminAuth, checkPermission('products', 'add'), imageUpload, addProduct)
+// Update product route with same upload handling
+router.put('/update/:id', adminAuth, checkPermission('products', 'edit'), imageUpload, updateProduct)
+router.post('/remove', adminAuth, checkPermission('products', 'delete'), removeProduct);
 router.post('/single', singleProduct);
 router.get('/single/:id', getProductById); // New route to get product by ID
 router.get('/list', listProducts);
-router.put('/quantity', adminAuth, updateQuantity)
+router.put('/quantity', adminAuth, checkPermission('products', 'edit'), updateQuantity)
 router.put('/update/:id', authUser, updateProduct);
 
 // Review routes (some already exist in reviewRoutes.js, ensure no conflict or consolidate)

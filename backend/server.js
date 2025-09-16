@@ -14,6 +14,7 @@ import settingRoute from './routes/settingRoute.js'
 import reviewRoutes from './routes/reviewRoutes.js'
 import photoRouter from './routes/PhotoRoute.js'
 import newsletterRouter from './routes/newsletterRoute.js'
+import adminRouter from './routes/adminRoute.js'
 
 //App config
 
@@ -42,6 +43,7 @@ app.use('/api/settings', settingRoute)
 app.use('/api/reviews', reviewRoutes)
 app.use('/api/photos', photoRouter)
 app.use('/api/newsletter', newsletterRouter)
+app.use('/api/adminmgmt', adminRouter)
 
 app.get('/', (req, res) => {
     res.send("API working")

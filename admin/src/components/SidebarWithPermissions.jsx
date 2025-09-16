@@ -63,14 +63,18 @@ const Sidebar = ({ setToken, token }) => {
         border-r-2 flex flex-col
       `}>
         <div className='flex flex-col gap-4 pt-6 px-4 text-base overflow-y-auto flex-1'>
-          <NavLink 
-            to='/' 
-            className='flex items-center gap-3 border border-gray-300 border-r-0 px-3 py-2 rounded-l'
-            onClick={() => setIsOpen(false)}
-          >
-            <BsGrid size={20} />
-            <p className='block'>Dashboard</p>
-          </NavLink>          {hasPermission('categories') && (
+          {hasPermission('dashboard') && (
+            <NavLink 
+              to='/' 
+              className='flex items-center gap-3 border border-gray-300 border-r-0 px-3 py-2 rounded-l'
+              onClick={() => setIsOpen(false)}
+            >
+              <BsGrid size={20} />
+              <p className='block'>Dashboard</p>
+            </NavLink>
+          )}
+
+          {hasPermission('categories') && (
             <NavLink 
               to='/category' 
               className='flex items-center gap-3 border border-gray-300 border-r-0 px-3 py-2 rounded-l'
@@ -134,7 +138,9 @@ const Sidebar = ({ setToken, token }) => {
               <BsChatDots size={18} /> 
               <p className='block'>Messages</p>
             </NavLink>
-          )}          {hasPermission('subscribers') && (
+          )}
+
+          {hasPermission('subscribers') && (
             <NavLink 
               to='/subscribers' 
               onClick={() => setIsOpen(false)}
@@ -156,7 +162,7 @@ const Sidebar = ({ setToken, token }) => {
             </NavLink>
           )}
 
-          {hasPermission('adminManagement') && (
+          {hasPermission('adminManagement', 'view') && (
             <NavLink 
               to='/admin-management' 
               onClick={() => setIsOpen(false)}
@@ -178,7 +184,7 @@ const Sidebar = ({ setToken, token }) => {
             </NavLink>
           )}
 
-           <button
+           <button 
                 onClick={()=>setToken('')}
                 className='cursor-pointer bg-gray-700 hover:bg-gray-900 text-white px-5 py-2 sm:px-7 sm:py-3 rounded-lg text-xs sm:text-sm'>
                     Logout

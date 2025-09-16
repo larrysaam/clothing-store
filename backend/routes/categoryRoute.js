@@ -1,5 +1,5 @@
 import express from 'express';
-import adminAuth  from '../middleware/adminAuth.js';
+import adminAuth, { checkPermission } from '../middleware/enhancedAdminAuth.js';
 import {
   addMainCategory,
   addSubcategory,
@@ -12,10 +12,10 @@ import {
 const router = express.Router();
 
 router.get('/', getCategories);
-router.post('/addMain', adminAuth, addMainCategory);
-router.post('/addSub', adminAuth, addSubcategory);
-router.post('/addSubSub', adminAuth, addSecondLevelSubcategory);
-router.delete('/delete', adminAuth, deleteCategory);
+router.post('/addMain', adminAuth, checkPermission('categories', 'manage'), addMainCategory);
+router.post('/addSub', adminAuth, checkPermission('categories', 'manage'), addSubcategory);
+router.post('/addSubSub', adminAuth, checkPermission('categories', 'manage'), addSecondLevelSubcategory);
+router.delete('/delete', adminAuth, checkPermission('categories', 'manage'), deleteCategory);
 router.get('/user', getUserCategories);
 
 export default router;
