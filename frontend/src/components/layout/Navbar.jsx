@@ -1,5 +1,5 @@
 import React, { useContext, useState, useEffect } from 'react'
-import { MdOutlineArrowRightAlt, MdOutlineKeyboardBackspace } from "react-icons/md";
+import { MdOutlineArrowRightAlt, MdOutlineKeyboardBackspace, MdPublic } from "react-icons/md";
 import { Link, NavLink } from 'react-router-dom'
 import { useLocation } from 'react-router-dom'
 import { assets } from '@/assets/assets'
@@ -96,6 +96,33 @@ const Navbar = () => {
   const toggleLanguage = () => {
     i18n.changeLanguage(i18n.language === 'en' ? 'fr' : 'en');
   };
+
+  // Google Translate widget initialization (only once)
+  useEffect(() => {
+    // Only add script if not already present
+    if (!window.googleTranslateElementInit) {
+      window.googleTranslateElementInit = function() {
+        if (window.google && window.google.translate) {
+          new window.google.translate.TranslateElement({
+            pageLanguage: 'en',
+            includedLanguages: 'en,fr',
+            layout: window.google.translate.TranslateElement.InlineLayout.SIMPLE
+          }, 'google_translate_element');
+        }
+      };
+      const script = document.createElement('script');
+      script.id = 'google-translate-script';
+      script.src = 'https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
+      document.body.appendChild(script);
+    } else if (window.google && window.google.translate && document.getElementById('google_translate_element')) {
+      // If script is already loaded, re-initialize
+      new window.google.translate.TranslateElement({
+        pageLanguage: 'en',
+        includedLanguages: 'en,fr',
+        layout: window.google.translate.TranslateElement.InlineLayout.SIMPLE
+      }, 'google_translate_element');
+    }
+  }, []);
 
   // Helper functions for dropdown management
   const handleDropdownEnter = (category) => {
@@ -263,19 +290,29 @@ const Navbar = () => {
           {/* Render dropdown outside of the navigation items */}
           {Object.keys(categories).map((category) => renderSubcategories(category))}
   
-          <div className='flex items-center gap-6'>
+          <div className='flex items-center gap-5'>
+            {/* Google Translate toggle */}
+            <div id="google_translate_element" className="mr-2" style={{ minWidth: 80 }}></div>
             {/* Language toggle button */}
             <button 
-              onClick={toggleLanguage}
+              onClick={() => {
+                // Get current language from cookie
+                const match = document.cookie.match(/googtrans=\/en\/(fr|en)/);
+                const currentLang = match ? match[1] : 'en';
+                const newLang = currentLang === 'en' ? 'fr' : 'en';
+                document.cookie = `googtrans=/en/${newLang};path=/`;
+                window.location.reload();
+              }}
               className='px-2 py-1 text-sm border rounded hover:bg-gray-100'
             >
-              {i18n.language === 'en' ? 'FR' : 'EN'}
+              {/* Button label based on Google Translate language */}
+              <MdPublic className="w-5 h-5" />
             </button>
 
             {/* pre-order button */}
             <button className='w-40 h-8 hidden sm:block rounded-full bg-black text-white text-sm'>
               <Link to="/collection?preorder=true">
-                <span>{t('preorder_now')}</span>
+                <span>{t('Preorder')}</span>
                 <MdOutlineArrowRightAlt className='inline-block ml-2 bg-white text-black rounded-full w-5 h-5' />
               </Link>
             </button>
@@ -297,7 +334,7 @@ const Navbar = () => {
                 onClick={() => (token ? null : navigate('/login'))}
                 src={assets.profile}
                 alt='profileIcon'
-                className='w-5 cursor-pointer transition-all duration-300 group-hover:scale-[125%]'
+                className='w-5 h-5 min-w-5 min-h-5 sm:w-5 sm:h-5 sm:min-w-5 sm:min-h-5 cursor-pointer transition-all duration-300 group-hover:scale-[125%]'
               />
               {/* Dropdown Menu */}
               {token && (

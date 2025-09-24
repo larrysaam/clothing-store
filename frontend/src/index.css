@@ -25,7 +25,21 @@
   
  }
 
- 
+/* Hide the entire Google Translate widget */
+
+
+/* If you need to hide the iframe specifically, though display: none on the parent is usually enough */
+#google_translate_element .skiptranslate.goog-te-gadget {
+    display: none !important;
+}
+
+/* Also hide the Google Translate toolbar that appears at the top after translation */
+body > .skiptranslate {
+    display: none !important;
+}
+body {
+    top: 0px !important; /* Remove the top margin added by the toolbar */
+}
 
  @layer base {
   :root {

@@ -27,6 +27,28 @@ import Delivery from '@/pages/Delivery';
 const App = () => {
   const { pathname } = useLocation();
 
+  // Inject Google Translate widget on mount
+  useEffect(() => {
+    const addGoogleTranslateScript = () => {
+      if (document.getElementById('google-translate-script')) return;
+      const script = document.createElement('script');
+      script.id = 'google-translate-script';
+      script.src = 'https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
+      document.body.appendChild(script);
+    };
+    window.googleTranslateElementInit = function() {
+      new window.google.translate.TranslateElement({
+        pageLanguage: 'en',
+        includedLanguages: 'en,fr', // Only allow English and French
+        layout: window.google.translate.TranslateElement.InlineLayout.SIMPLE
+      }, 'google_translate_element');
+    };
+    addGoogleTranslateScript();
+    // Cleanup
+    return () => {
+      delete window.googleTranslateElementInit;
+    };
+  }, []);
 
   //scroll to top of the page on location changes
   useEffect(() => {
@@ -35,6 +57,8 @@ const App = () => {
 
   return (
     <div className="">
+      {/* Google Translate Widget */}
+      {/* <div id="google_translate_element" style={{ position: 'fixed', top: 10, right: 10, zIndex: 9999 }}></div> */}
       <Toaster richColors closeButton/>
         <Navbar />
         <SearchBar />
