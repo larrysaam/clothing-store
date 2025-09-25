@@ -310,7 +310,7 @@ const Navbar = () => {
             </button>
 
             {/* pre-order button */}
-            <button className='w-50 h-8 hidden sm:block rounded-full bg-black text-white text-sm'>
+            <button className='w-52 h-8 hidden sm:block rounded-full bg-black text-white text-sm'>
               <Link to="/collection?preorder=true">
                 <span>{t('Preorder')}</span>
                 <MdOutlineArrowRightAlt className='inline-block ml-2 bg-white text-black rounded-full w-5 h-5' />
