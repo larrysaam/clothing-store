@@ -260,7 +260,7 @@ const Navbar = () => {
           <Link to='/' className='cursor-pointer'>
             <img src={assets.KMlogo} alt='logo' className='w-16 sm:w-18' />
           </Link>
-          <div>
+          <div >
           </div>
           <ul className='hidden sm:flex gap-5 text-sm text-black'>
             {Object.keys(categories).map((category) => (
@@ -290,7 +290,7 @@ const Navbar = () => {
           {/* Render dropdown outside of the navigation items */}
           {Object.keys(categories).map((category) => renderSubcategories(category))}
   
-          <div className='flex items-center gap-5'>
+          <div className='flex items-center gap-5 mr-10 sm:mr-0'>
             {/* Google Translate toggle */}
             <div id="google_translate_element" className="mr-2" style={{ minWidth: 80 }}></div>
             {/* Language toggle button */}
@@ -310,7 +310,7 @@ const Navbar = () => {
             </button>
 
             {/* pre-order button */}
-            <button className='w-40 h-8 hidden sm:block rounded-full bg-black text-white text-sm'>
+            <button className='w-50 h-8 hidden sm:block rounded-full bg-black text-white text-sm'>
               <Link to="/collection?preorder=true">
                 <span>{t('Preorder')}</span>
                 <MdOutlineArrowRightAlt className='inline-block ml-2 bg-white text-black rounded-full w-5 h-5' />
@@ -384,7 +384,7 @@ const Navbar = () => {
                 <img src={assets.cart} alt='cartIcon' className='w-5 min-w-5 ' />
                 {(getCartCount() + getPreorderCartCount()) > 0 && (
                   <p
-                    className='absolute -right-[5px] -bottom-[5px] w-4 text-center
+                    className='absolute -right-[5px] -bottom-[5px] w-5 text-center
                       leading-4 bg-black text-white aspect-square rounded-full text-[10px]'
                   >
                     {getCartCount() + getPreorderCartCount()}
