@@ -39,10 +39,7 @@ const Login = ({setToken}) => {
                 <button type='submit' className='mt-2 w-full py-2 px-4 rounded-md text-white bg-black cursor-pointer'>Log In</button>
             </form>
         </div>
-        <div className='flex flex-col items-center mt-1 bg-gray-100 shadow-md px-4 py-2 rounded-2xl z-10 text-gray-700 '>
-            <p>Tip: email: admin@test.com</p>
-            <p>password: 123qwe123</p>
-        </div>
+       
     </div>
   )
 }
